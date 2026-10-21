@@ -79,7 +79,7 @@ static int ed_menu_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
         ed_v((int32_t)menu_get(row) + lo);
         ed_v(lo);
         ed_v((int32_t)k - 1 + lo);
-        ed_str(MI_NAME[row], 12);
+        ed_str(row == MI_TCH1 && song.g[G_ROUTE] == ROUTE_MPE ? "BASE CH" : MI_NAME[row], 12);
         if (row == MI_TUNE)
             ed_str("ct", 12);                          /* (EDM_INT: its unit) */
         else

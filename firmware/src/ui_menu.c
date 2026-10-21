@@ -305,7 +305,7 @@ static void menu_row(uint32_t k, uint32_t row)
     else if (k && row - 1u != ui.menu_sel)             /* a rule from the row above (none beside the selected one) */
         cv_rect(MR_X + 6, y - 1, MR_W - 12, 1, ux.style ? T_RULE : T_LINE);
     GFX_HOOK_ALIGN(0, y, 0, y + h, AL_V, "menu row name centred up/down");
-    cv_text_on(MR_LX, vy, &AF_M, MI_NAME[row], fg, bg);
+    cv_text_on(MR_LX, vy, &AF_M, row == MI_TCH1 && song.g[G_ROUTE] == ROUTE_MPE ? "BASE CH" : MI_NAME[row], fg, bg);
     if (row == MI_LCLEAR) {                            /* LEARN CLEAR (1.5): how many CCs are learned, "NONE" */
         char b[8] = "NONE";
         if (ml_count()) {

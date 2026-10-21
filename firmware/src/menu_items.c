@@ -184,7 +184,7 @@ static uint32_t menu_n(uint32_t row)
 {
     return row == MI_COLOR ? palette_n() : row == MI_LOWCUT || (row >= MI_CLICK && row <= MI_COUNTIN) ? 3u :
            row == MI_HOLD ? 4u : row == MI_LEDS ? LEDS_ROWS : row == MI_SCROFF ? NELEM(SCROFF_N) :
-           row == MI_TUNE ? TUNE_N : row == MI_MIDIIN ? NELEM(N_ROUTE) : MI_TCH(row) ? MCH_N : row == MI_ANIM ? 3u : row == MI_HOME ? HV_COUNT :
+           row == MI_TUNE ? TUNE_N : row == MI_MIDIIN ? NELEM(N_ROUTE) : MI_TCH(row) ? (row == MI_TCH1 && song.g[G_ROUTE] == ROUTE_MPE ? 16u : MCH_N) : row == MI_ANIM ? 3u : row == MI_HOME ? HV_COUNT :
            row == MI_SELECT ? SEL_N : 2u;
 }
 static uint32_t menu_get(uint32_t row)
@@ -205,7 +205,9 @@ static uint32_t menu_get(uint32_t row)
     case MI_CLICK: case MI_CLKLVL: case MI_COUNTIN: return rp_get(row - MI_CLICK);
     case MI_TUNE: return (uint32_t)(clamp(song.g[G_TUNE], TUNE_MIN, TUNE_MIN + (int32_t)TUNE_N - 1) - TUNE_MIN);
     case MI_MIDIIN: return (uint32_t)clamp(song.g[G_ROUTE], 0, (int32_t)NELEM(N_ROUTE) - 1);
-    case MI_TCH1: case MI_TCH2: case MI_TCH3: case MI_TCH4: return mch_get(row - MI_TCH1);
+    case MI_TCH1:                                       /* T1 CHANNEL, or BASE CH in MPE mode (step 8) */
+        return song.g[G_ROUTE] == ROUTE_MPE ? mpe_base_get() : mch_get(0);
+    case MI_TCH2: case MI_TCH3: case MI_TCH4: return mch_get(row - MI_TCH1);
     case MI_LEDS:
         while (i + 1u < LEDS_COUNT && LEDS_MENU[i] != settings_leds)
             i++;
@@ -299,8 +301,17 @@ static void menu_put(uint32_t row, uint32_t v)
     case MI_CLICK: case MI_CLKLVL: case MI_COUNTIN: rp_put(row - MI_CLICK, v); break;   /* (at once: click.c, seq.c) */
     case MI_TUNE: song.g[G_TUNE] = (int16_t)((int32_t)v + TUNE_MIN); break;
     case MI_MIDIIN: song.g[G_ROUTE] = (int16_t)v; break;
-    case MI_TCH1: case MI_TCH2: case MI_TCH3: case MI_TCH4:   /* (MIDI IN TRACK: what the channel no longer hears let */
-        mch_set(row - MI_TCH1, v);                     /* go, seq.c events_block) */
+    case MI_TCH1: /* T1 CHANNEL, or BASE CH in MPE mode (step 8): the channels the zone owns change, so the
+                   * same "let the old ones go" as a ROUT change (seq.c events_block) */
+        if (song.g[G_ROUTE] == ROUTE_MPE)
+            mpe_base_set(v);
+        else
+            mch_set(0, v);
+        midi_route = MIDI_ROUTE_AGAIN;
+        break;
+    case MI_TCH2: case MI_TCH3: case MI_TCH4:   /* (MIDI IN TRACK: what the channel no longer hears let
+                                                  * go, seq.c events_block) */
+        mch_set(row - MI_TCH1, v);
         midi_route = MIDI_ROUTE_AGAIN;
         break;
     }

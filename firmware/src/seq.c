@@ -58,8 +58,11 @@ static volatile uint8_t midi_seen;       /* 1.5.5 (#208): bit per track, a MIDI 
 static uint32_t trk_index(const track_t *t) { return (uint32_t)(t - trk); }
 
 /* MPE mode (ROUTE_MPE, 6): the first member channel index (0..15) of the single lower zone, default 1
- * (channel 2, per spec). The MPE part owns every channel from here up. Live setting only (step 8: UI). */
+ * (channel 2, per spec). The MPE part owns every channel from here up. Live setting only (step 8: the
+ * MENU > MIDI BASE CH row; a reboot returns to the default of channel 2) */
 static uint8_t mpe_base = 1;
+uint8_t mpe_base_get(void) { return mpe_base; }
+void mpe_base_set(uint32_t v) { mpe_base = (uint8_t)(v < 16u ? v : 1u); }
 
 /* MENU > MIDI > MIDI IN (G_ROUTE, up to 1.1.5 GLO > SYSTEM ROUT): the first channel (0..15) of the block of four that
  * plays tracks 1..4, -1 with SEL, -2 with TRACK (each track its own: song.mch). Stored

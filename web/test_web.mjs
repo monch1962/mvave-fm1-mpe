@@ -184,7 +184,7 @@ async function editorMock() {
        items[18].names.join() === "OUT,MIX" && items[18].value === 0 && items[19].names.join() === "OFF,ON" &&
        items[19].value === 0 && items[20].names.join() === "HOLD,ADD" && items[20].value === 0 &&
        items.slice(0, 22).every((d) => d.kind === 0 && d.min === 0 && d.names.length === d.max - d.min + 1) &&
-       items[21].names.join() === "CH1-4,SEL,CH5-8,CH9-12,CH13-16,TRACK" && items[21].value === 0 &&
+       items[21].names.join() === "CH1-4,SEL,CH5-8,CH9-12,CH13-16,TRACK,MPE" && items[21].value === 0 &&
        items.slice(26, 30).every((d, k) => d.kind === 0 && d.names.length === 18 && d.names[9] === "10" && d.names[16] === "OMNI" &&
                                          d.names[17] === "OFF" && d.value === k && d.tab === 3) &&   // (1.5.5: T1..T4 CHANNEL)
        items[30].names.join() === "OFF,ON" && items[30].value === 0 && items[30].tab === 3 &&   // (1.5.5: AUTO SELECT)
@@ -279,12 +279,12 @@ async function editorMock() {
   ok(set.value === 127, "editor: SET clamps to the range");
   {
     /* MENU > MIDI > MIDI IN (G_ROUTE 14; up to 1.1.5 GLO > SYSTEM ROUT): CH1-4 (0, the default) / SEL (1) / 1.2: CH5-8 CH9-12 CH13-16 (2..4);
-     * the id and G_COUNT unchanged; 5 clamps to the last */
+     * the id and G_COUNT unchanged; 6 clamps to the last (MPE, step 8) */
     const rd = E.parse[E.CMD.DESC](await rq(E.req.desc(1, 14)));
     const r1 = E.parse[E.CMD.SET](await rq(E.req.set(1, 14, 5)));
     const r0 = E.parse[E.CMD.SET](await rq(E.req.set(1, 14, 0)));
-    ok(rd.label === "ROUT" && rd.def === 0 && eq(rd.names, ["CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16", "TRACK"]) && r1.value === 5 && r0.value === 0 && info.gcount === 27,
-      "editor: MIDI IN routing (ROUT CH1-4 / SEL / CH5-8 / CH9-12 / CH13-16 / 1.5.5 TRACK, global id 14)");
+    ok(rd.label === "ROUT" && rd.def === 0 && eq(rd.names, ["CH1-4", "SEL", "CH5-8", "CH9-12", "CH13-16", "TRACK", "MPE"]) && r1.value === 5 && r0.value === 0 && info.gcount === 27,
+      "editor: MIDI IN routing (ROUT CH1-4 / SEL / CH5-8 / CH9-12 / CH13-16 / 1.5.5 TRACK / MPE, global id 14)");
   }
   {
     /* FX > REVERB TYPE (G_RTYPE 24, the old drum channel's id): ROOM (0) / SPRING (1) / HALL (2, 1.2: the default);
