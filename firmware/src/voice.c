@@ -661,6 +661,16 @@ static __attribute__((noinline)) void spread_sum(int32_t *out)
 /* render one block of a part into out (cleared here); returns the voices rendered */
 /* Channel bend is live performance state, outside projects/presets. Q8 semitones. */
 static int32_t midi_bend_q8[NTRK], midi_bend_target[NTRK];
+/* MPE (step 3): a voice's own bend in Q8 semitones, from its channel's bend and RPN range.
+ * Same formula as midi_control's midi_expression (the track-level blend) but per channel, no
+ * smoothing: the controller's data is the per-note expression, and a block is the firmware's
+ * granularity anyway */
+static int32_t mpe_voice_bend_q8(const voice_t *v)
+{
+    const midi_channel_t *c = &midi_ch[v->mch];
+    int32_t range = ((int32_t)c->semis * 100 + c->cents) * 256 / 100;
+    return (int32_t)c->bend * range / (c->bend < 0 ? 8192 : 8191);
+}
 static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
 {
     const engine_t *e = ENGINES[t->engine];
@@ -670,7 +680,7 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
     /* TUNE in cents: whole 1/16 semitones in the pitch, the rest as a fine factor (no dead zone) */
     int32_t tune = song.g[G_TUNE] >= 0 ? song.g[G_TUNE] * 16 / 100 : -((-song.g[G_TUNE] * 16 + 99) / 100);
     int32_t tune_fine = (song.g[G_TUNE] * 16 - tune * 100) * 2367 / 16000;   /* rest, in 1/4096 (1 ct = 2.367) */
-    int32_t bend, bend16, bend_fine;
+    int32_t bend;
     uint32_t ti = (uint32_t)(t - trk);
     if (ENGINES[eng_idx(t->eng_req)] == &ENG_DRUM) {
         midi_bend_q8[ti] = midi_bend_target[ti] = 0;
@@ -680,8 +690,6 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         midi_bend_q8[ti] += d > 0 ? (d < 4 ? d : (d + 3) / 4) : (d > -4 ? d : (d - 3) / 4);
     }
     bend = midi_bend_q8[ti];
-    bend16 = bend >= 0 ? bend / 16 : -((-bend + 15) / 16);
-    bend_fine = (bend - bend16 * 16) * 2367 / 2560;
     uint32_t nr = 0, fade = t->xf_on && t->xf;
     int16_t pe_new[8];
     for (i = 0; i < n; i++)
@@ -741,18 +749,25 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         }
         if (!env && !m.amp0 && v->stage == 2 && !e->sampled)
             continue;                                   /* held at a silent sustain (SUS 0): nothing to render */
-        pitch = v->pitch_cur + tune + bend16 + ((lfo * p[P_LD_PIT] * 3) >> 15) + ((m.envq15 * p[P_ED_PIT] * 3) >> 15);
-        m.pitch16 = clamp(pitch, 0, 2047);
-        m.inc = pitch_inc(m.pitch16);
-        m.fine = v->fine + tune_fine + bend_fine;
-        if (v->fine + tune_fine + bend_fine)             /* residual below 1/16 semitone */
-            m.inc += (uint32_t)((int32_t)(m.inc >> 12) * (v->fine + tune_fine + bend_fine));
+        {
+            /* MPE (step 3): an MPE voice bends its own channel's value (no unification); every other
+             * voice takes the track-level bend above. Same Q8 -> 1/16 + fine conversion */
+            int32_t vb = v->mch == VOICE_MCH_NONE ? bend : mpe_voice_bend_q8(v);
+            int32_t b16 = vb >= 0 ? vb / 16 : -((-vb + 15) / 16);
+            int32_t bf = (vb - b16 * 16) * 2367 / 2560;
+            pitch = v->pitch_cur + tune + b16 + ((lfo * p[P_LD_PIT] * 3) >> 15) + ((m.envq15 * p[P_ED_PIT] * 3) >> 15);
+            m.pitch16 = clamp(pitch, 0, 2047);
+            m.inc = pitch_inc(m.pitch16);
+            m.fine = v->fine + tune_fine + bf;
+            if (m.fine)                                 /* residual below 1/16 semitone */
+                m.inc += (uint32_t)((int32_t)(m.inc >> 12) * m.fine);
+        }
         m.cutoff = ((lfo * p[P_LD_FLT]) >> 7) + ((m.envq15 * p[P_ED_FLT]) >> 7);
         if (v->vel > 110)                               /* accent opens the filter with the env */
             m.cutoff += (m.envq15 * 24) >> 7;
         m.shape = (64 << 8) + ((lfo * p[P_LD_SHP]) >> 7) + ((m.envq15 * p[P_ED_SHP]) >> 7);
         if (MOD(t).on)                                  /* the modulation matrix (mod.c) */
-            mod_voice(t, v, &m, v->fine + tune_fine + bend_fine);
+            mod_voice(t, v, &m, m.fine);
         e->render(t, v, T_SPREAD(t) > v->side ? SPREAD_BUF(t) : out, n, &m);   /* (SPREAD: the left ones) */
         nr++;
     }

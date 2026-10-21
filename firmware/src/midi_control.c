@@ -3,16 +3,10 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* Shared USB/TRS channel controls. Included by seq.c after its input helpers.
  * USB and TRS intentionally share channel state, matching the existing routing.
+ * midi_channel_t and midi_ch[] live in core.h (voice.c reads per-channel bend for MPE, step 3).
  * A synth part has one live bend/wheel state; channels assigned to the same part
- * share it (last controller wins). Drum hits ignore bend and sustain. CC1 keeps the existing matrix routing. */
-typedef struct {
-    int16_t bend;                           /* signed 14-bit value, zero = centre */
-    uint8_t wheel, pedal, targets;
-    uint8_t owned[NTRK];                    /* held/pedal notes per track, at most 128 per channel */
-    uint8_t ready, semis, cents;
-    uint8_t rpn_msb, rpn_lsb;
-} midi_channel_t;
-static midi_channel_t midi_ch[16];
+ * share it (last controller wins), except in MPE mode where each member channel bends its own
+ * voices (voice.c mpe_voice_bend_q8). Drum hits ignore bend and sustain. CC1 keeps the existing matrix routing. */
 /* Low bits: track + 1. High bit: key released, held by its channel's pedal. */
 static uint8_t midi_sel_on[16][128];
 #define midi_notes midi_sel_on
