@@ -113,11 +113,11 @@ static uint64_t phrase_child(uint32_t e, uint32_t pi, void (*setup)(track_t *t))
         fresh(e, pi);
         if (setup)
             setup(t);
-        trk_note_on(t, 60, 100);
-        trk_note_on(t, 64, 70);
-        trk_note_on(t, 67, 120);
+        trk_note_on(t, 60, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 64, 70, VOICE_MCH_NONE);
+        trk_note_on(t, 67, 120, VOICE_MCH_NONE);
         blocks(FS / 2u / CTL);
-        trk_note_on(t, 72, 90);
+        trk_note_on(t, 72, 90, VOICE_MCH_NONE);
         blocks(FS / 4u / CTL);
         trk_note_off(t, 60);
         trk_note_off(t, 64);
@@ -163,7 +163,7 @@ static void test_matrix(void)
     fresh(0, 0);
     t->p[P_LRATE] = 90;                                   /* a few Hz */
     t->p[P_LWAVE] = 4;                                    /* S&H: the LFO's own value is the same random */
-    trk_note_on(t, 60, 100);
+    trk_note_on(t, 60, 100, VOICE_MCH_NONE);
     blocks(1);
     prev_sh = mod_sh(t);
     prev_slew = mod_tsrc(t, MS_SLEW, 0);
@@ -339,7 +339,7 @@ static void analog_note(uint32_t pi, int32_t w, int32_t d, int32_t mx, int32_t s
     t->p[P_ED_SHP] = (int16_t)shp_env;
     t->p[P_ATK] = 0;
     t->p[P_SUS] = 127;
-    trk_note_on(t, note, 100);
+    trk_note_on(t, note, 100, VOICE_MCH_NONE);
     for (k = 0; k < NREND; k++) {
         blocks(1);
         for (i = 0; i < CTL; i++)
@@ -487,7 +487,7 @@ static lr_t spread_run(int32_t sp, int32_t pan, uint32_t mode, const uint8_t *no
     t->p[P_PAN] = (int16_t)pan;
     t->p[P_ATK] = 0;
     for (i = 0; i < nn; i++)
-        trk_note_on(t, notes[i], 100);
+        trk_note_on(t, notes[i], 100, VOICE_MCH_NONE);
     for (k = 0; k < nb; k++) {
         blocks(1);
         for (i = 0; i < CTL; i++) {
@@ -546,7 +546,7 @@ static void test_spread(void)
         for (k = 0; k < NVOICE; k++)
             if (t->v[k].active && t->v[k].note == 60) {
                 uint32_t s0 = t->v[k].side;
-                trk_note_on(t, 60, 100);
+                trk_note_on(t, 60, 100, VOICE_MCH_NONE);
                 blocks(2);
                 same = t->v[k].active && t->v[k].note == 60 && t->v[k].side == s0;
             }
@@ -588,7 +588,7 @@ static void test_spread_fx(void)
     t->p[P_SLDEPTH] = 127;
     slicer_start();
     for (i = 0; i < 4u; i++)
-        trk_note_on(t, CHORD[i], 100);
+        trk_note_on(t, CHORD[i], 100, VOICE_MCH_NONE);
     blocks(FS / 4u / CTL);
     for (k = 0; k < FS / CTL; k++) {
         double s = 0;
@@ -618,7 +618,7 @@ static void test_spread_fx(void)
             t->p[P_ATK] = 0;
             t->p[P_SPRD] = (int16_t)(r ? 127 : 0);
             for (i = 0; i < 4u; i++)
-                trk_note_on(t, CHORD[i], 100);
+                trk_note_on(t, CHORD[i], 100, VOICE_MCH_NONE);
             for (ph = 0; ph < 2u; ph++) {
                 if (ph)
                     perf_held |= 1u << PF_M1;
@@ -648,7 +648,7 @@ static void test_spread_fx(void)
             t->p[P_REV] = 100;
             t->p[P_SPRD] = (int16_t)(r ? 127 : 0);
             for (i = 0; i < 4u; i++)
-                trk_note_on(t, CHORD[i], 100);
+                trk_note_on(t, CHORD[i], 100, VOICE_MCH_NONE);
             blocks(FS / 4u / CTL);
             uint64_t hs = 0xCBF29CE484222325ull;   /* (blocks() hashes the output into hash: its own) */
             for (k = 0; k < FS / 4u / CTL; k++) {
@@ -696,7 +696,7 @@ static double cost(uint32_t nv, int32_t sp, int mx, uint32_t wave)
         t->p[P_LD_FLT] = 20;
     }
     for (i = 0; i < nv; i++)
-        trk_note_on(t, NOTES[i], 100);
+        trk_note_on(t, NOTES[i], 100, VOICE_MCH_NONE);
     blocks(FS / 4u / CTL);
     for (rep = 0; rep < 3u; rep++) {
         uint64_t i0 = instr_now();
@@ -759,7 +759,7 @@ static void demo_blocks(FILE *f, uint32_t n)
 static void chord_on(track_t *t, const uint8_t *n, uint32_t k)
 {
     while (k--)
-        trk_note_on(t, n[k], 100);
+        trk_note_on(t, n[k], 100, VOICE_MCH_NONE);
 }
 static void chord_off(track_t *t, const uint8_t *n, uint32_t k)
 {
@@ -813,7 +813,7 @@ static int demos(const char *dir)
     slot(t, 0, MS_MODW, MD_DEPTH, 63);
     slot(t, 1, MS_MODW, MD_RATE, 40);
     if ((f = demo_open(dir, "lfo_rate_depth", 6u * FS / CTL * CTL))) {
-        trk_note_on(t, 69, 100);
+        trk_note_on(t, 69, 100, VOICE_MCH_NONE);
         for (k = 0; k < 5u * FS / CTL; k++) {
             t->mw = (uint8_t)(k * 127u / (5u * FS / CTL));
             demo_blocks(f, 1);
@@ -831,7 +831,7 @@ static int demos(const char *dir)
         static const uint8_t LINE[8] = {36, 36, 43, 36, 39, 36, 46, 43};
         for (k = 0; k < 24u; k++) {
             t->p[P_E2] = (int16_t)(k * 127u / 23u);
-            trk_note_on(t, LINE[k & 7u], 100);
+            trk_note_on(t, LINE[k & 7u], 100, VOICE_MCH_NONE);
             demo_blocks(f, FS / 4u / CTL * 3u / 4u);
             trk_note_off(t, LINE[k & 7u]);
             demo_blocks(f, FS / 4u / CTL - FS / 4u / CTL * 3u / 4u);
@@ -852,12 +852,12 @@ static int demos(const char *dir)
     if ((f = demo_open(dir, "analog_sync", 7u * FS / CTL * CTL))) {
         static const uint8_t MEL[8] = {57, 60, 64, 67, 64, 60, 62, 55};
         for (k = 0; k < 8u; k++) {
-            trk_note_on(t, MEL[k], 110);
+            trk_note_on(t, MEL[k], 110, VOICE_MCH_NONE);
             demo_blocks(f, FS / 2u / CTL);
             trk_note_off(t, MEL[k]);
         }
         t->p[P_ED_SHP] = 0;
-        trk_note_on(t, 57, 110);
+        trk_note_on(t, 57, 110, VOICE_MCH_NONE);
         for (k = 0; k < 2u * FS / CTL; k++) {
             t->p[P_E1] = (int16_t)(k * 127u / (2u * FS / CTL));
             demo_blocks(f, 1);
@@ -893,7 +893,7 @@ static int demos(const char *dir)
         uint32_t r;
         for (r = 0; r < 2u; r++) {
             t->p[P_SPRD] = (int16_t)(r ? 127 : 0);
-            trk_note_on(t, 57, 100);
+            trk_note_on(t, 57, 100, VOICE_MCH_NONE);
             demo_blocks(f, 2u * FS / CTL);
             trk_note_off(t, 57);
             demo_blocks(f, FS / CTL);

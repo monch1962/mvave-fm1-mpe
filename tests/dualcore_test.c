@@ -71,7 +71,7 @@ static uint64_t render(const scen_t *sc, int dual, const char *mask)
             uint32_t on = 100u + 330u * k, off = on + 1400u, base = 48u + 5u * k;
             if (ms == on || ms == on + 700u)
                 for (i = 0; i < 2u; i++)
-                    trk_note_on(&trk[k], base + CH[i + (ms != on)], 90 + 10 * k);
+                    trk_note_on(&trk[k], base + CH[i + (ms != on)], 90 + 10 * k, VOICE_MCH_NONE);
             if (ms == off)
                 for (i = 0; i < 3u; i++)
                     trk_note_off(&trk[k], base + CH[i]);

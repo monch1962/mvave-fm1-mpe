@@ -21,7 +21,7 @@ int main(int argc, char **argv)
             for (j = 0; j < sizeof st.raw; j++) st.raw[j] = (uint8_t)rnd();
             if (rnd() & 1u) { uint32_t m = 0x46554E30u + 1u + rnd() % 8u; memcpy(st.raw, &m, 4); }   /* "FUN1".."FUN8" */
         } else {                                                    /* a valid store, mutated */
-            for (j = 0; j < NTRK; j++) if (rnd() & 1u) trk_note_on(&trk[j], 48u + rnd() % 36u, 1u + rnd() % 127u);
+            for (j = 0; j < NTRK; j++) if (rnd() & 1u) trk_note_on(&trk[j], 48u + rnd() % 36u, 1u + rnd() % 127u, VOICE_MCH_NONE);
             project_capture(&a);
             if (!proj_pack(&st, &a)) continue;
             k = 1u + rnd() % 48u;
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
         if (proj_import(&c, &st, (int)n)) {
             imported++;
             project_restore_runtime(&c);
-            for (j = 0; j < NTRK; j++) trk_note_on(&trk[j], 48u + rnd() % 36u, 100);
+            for (j = 0; j < NTRK; j++) trk_note_on(&trk[j], 48u + rnd() % 36u, 100, VOICE_MCH_NONE);
             for (j = 0; j < 12u; j++) mix_block(o, CTL);
         }
         if (rnd() % 64u == 0) reset();

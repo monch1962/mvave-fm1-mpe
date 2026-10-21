@@ -275,7 +275,7 @@ static sine_run_t sine_run(uint32_t eng, int16_t src, uint32_t note)
     t->p[P_DEC] = 127;
     t->p[P_SUS] = 127;
     t->p[P_REL] = 10;
-    trk_note_on(t, note, 100);
+    trk_note_on(t, note, 100, VOICE_MCH_NONE);
     v = voice_of(t, note);
     r.sine = v && (eng == SLC_ENG ? ((uint32_t)v->s[4] & 7u) == SLC_SINE : eng == 8u ? v->s[0] == GR_SINE : v->s[6] == 2);
     for (k = 0; k < FS / 2u / CTL; k++) {
@@ -416,32 +416,32 @@ int main(int argc, char **argv)
         uint32_t a, b, st, ok = 1;
         host_tracks_init();
         host_preset(t, SLC_ENG, 0);                              /* BREAK 16 */
-        trk_note_on(t, 65, 100);
+        trk_note_on(t, 65, 100, VOICE_MCH_NONE);
         v = voice_of(t, 65);
         slc_bounds(&SLC_BREAK, 2, 5, &a, &b, &st);
         ok &= v && slice_of(v) == 5u && v->ph[0] == a && v->ph[2] == b;
-        trk_note_on(t, 59, 100);
+        trk_note_on(t, 59, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 59)) && slice_of(v) == 15u;
-        trk_note_on(t, 76, 100);
+        trk_note_on(t, 76, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 76)) && slice_of(v) == 0u;
         t->p[P_E2] = 3;                                    /* START */
-        trk_note_on(t, 60, 100);
+        trk_note_on(t, 60, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 60)) && slice_of(v) == 3u;
         t->p[P_E2] = 0;
         t->p[P_ROOT] = 2;                                  /* ROOT D: D4 is slice 0 */
-        trk_note_on(t, 62, 100);
+        trk_note_on(t, 62, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 62)) && slice_of(v) == 0u;
         check("keys: note - C4 - ROOT + START mod 16", ok, 0);
         ok = 1;
         t->p[P_ROOT] = 0;
         t->p[P_E1] = SLC_DIV_AUTO;
-        trk_note_on(t, 72, 100);                           /* 12 mod 10 hits */
+        trk_note_on(t, 72, 100, VOICE_MCH_NONE);                           /* 12 mod 10 hits */
         ok &= (v = voice_of(t, 72)) && slice_of(v) == 12u % SLC_BREAK.nauto && v->ph[0] == SLC_BREAK.apos[12u % SLC_BREAK.nauto];
         t->p[P_E0] = 2;                                    /* USR2: empty -> the sine */
-        trk_note_on(t, 61, 100);
+        trk_note_on(t, 61, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 61)) && ((uint32_t)v->s[4] & 7u) == SLC_SINE;
         t->p[P_E0] = 1;                                    /* USR1 */
-        trk_note_on(t, 63, 100);
+        trk_note_on(t, 63, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 63)) && ((uint32_t)v->s[4] & 7u) == 1u && v->ph[0] == slc_usr[0].apos[3];
         check("keys: AUTO count, an empty slot plays the sine, USR1", ok, 0);
         ok = 1;
@@ -461,7 +461,7 @@ int main(int argc, char **argv)
             host_preset(t, SLC_ENG, 0);
             t->p[P_E4] = (int16_t)m;
             t->p[P_REL] = 10;
-            trk_note_on(t, 60, 100);
+            trk_note_on(t, 60, 100, VOICE_MCH_NONE);
             v = voice_of(t, 60);
             if (m == SLC_LOOP) {
                 blocks(FS / CTL);                          /* 1 s held: still looping */
@@ -536,9 +536,9 @@ int main(int argc, char **argv)
         host_preset(t, SLC_ENG, 0);
         t->p[P_E0] = 1;
         t->p[P_E1] = SLC_DIV_MAN;
-        trk_note_on(t, 65, 100);
+        trk_note_on(t, 65, 100, VOICE_MCH_NONE);
         ok &= (v = voice_of(t, 65)) && slice_of(v) == 5u && v->ph[0] == m->pos[5] && v->ph[2] == m->pos[6];
-        trk_note_on(t, 60 + 33, 100);                          /* 33 mod 32 */
+        trk_note_on(t, 60 + 33, 100, VOICE_MCH_NONE);                          /* 33 mod 32 */
         ok &= (v = voice_of(t, 93)) && slice_of(v) == 1u;
         for (bad = 0, i = 0; i < SLC_AUTO; i++)
             bad += rev_check(1, SLC_DIV_MAN, i);
@@ -608,7 +608,7 @@ int main(int argc, char **argv)
             t->p[P_E1] = SLC_DIV_MAN;
             t->p[P_E5] = 1;                                /* REV */
             t->p[P_E4] = SLC_LOOP;
-            trk_note_on(t, 62, 100);                       /* slice 2, backwards, looping */
+            trk_note_on(t, 62, 100, VOICE_MCH_NONE);                       /* slice 2, backwards, looping */
             v = voice_of(t, 62);
             blocks(8);
             pa = slc_man_of(s)->pos[2];
@@ -636,7 +636,7 @@ int main(int argc, char **argv)
                     }
                     slc_man_commit(0);
                     t->p[P_E5] = (int16_t)r;                   /* forward, then REV */
-                    trk_note_on(t, 65, 100);                   /* slice 5, looping */
+                    trk_note_on(t, 65, 100, VOICE_MCH_NONE);                   /* slice 5, looping */
                     v = voice_of(t, 65);
                     blocks(20);
                     m = slc_man_begin(0);
@@ -839,7 +839,7 @@ int main(int argc, char **argv)
         host_preset(t, SLC_ENG, 0);
         t->p[P_E0] = (int16_t)SLC_SRC_PIANO;
         t->p[P_E1] = SLC_DIV_AUTO;
-        trk_note_on(t, 60, 100);
+        trk_note_on(t, 60, 100, VOICE_MCH_NONE);
         v = voice_of(t, 60);
         ok = v && ((uint32_t)v->s[4] & 7u) == SLC_SRC_PIANO && v->ph[0] == 0u && v->ph[2] == SLC_PIANO.len;
         for (i = 0; i < 40u; i++) {

@@ -110,11 +110,11 @@ static uint64_t phrase_child(uint32_t e, uint32_t pi, void (*setup)(track_t *t))
         fresh(e, pi);
         if (setup)
             setup(t);
-        trk_note_on(t, 60, 100);
-        trk_note_on(t, 64, 70);
-        trk_note_on(t, 67, 120);
+        trk_note_on(t, 60, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 64, 70, VOICE_MCH_NONE);
+        trk_note_on(t, 67, 120, VOICE_MCH_NONE);
         blocks(FS / 2u / CTL);
-        trk_note_on(t, 72, 90);
+        trk_note_on(t, 72, 90, VOICE_MCH_NONE);
         blocks(FS / 4u / CTL);
         trk_note_off(t, 60);
         trk_note_off(t, 64);
@@ -174,7 +174,7 @@ static stats_t analog_note(uint32_t w, uint32_t ft, int32_t cut, int32_t res, in
     t->p[P_LD_FLT] = 0;
     t->p[P_ATK] = 0;
     t->p[P_SUS] = 127;
-    trk_note_on(t, note, 100);
+    trk_note_on(t, note, 100, VOICE_MCH_NONE);
     for (k = 0; k < NREND; k++) {
         blocks(1);
         for (i = 0; i < CTL; i++)
@@ -281,7 +281,7 @@ static void test_filter(void)
         fresh(0, preset_by_name(0, "ACID"));
         dry(t);
         t->p[P_E5] = 127;
-        trk_note_on(t, 45, 120);
+        trk_note_on(t, 45, 120, VOICE_MCH_NONE);
         for (k = 0; k < 3u * FS / CTL; k++) {
             if (!(k % 40u))
                 t->p[P_FTYPE] = (int16_t)((k / 40u) % 3u);
@@ -344,7 +344,7 @@ static times_t env_times(const char *name)
     t->p[P_ESYNC] = 1;
     t->p[P_ATK] = t->p[P_DEC] = t->p[P_REL] = (int16_t)val;
     t->p[P_SUS] = 127;
-    trk_note_on(t, 60, 100);
+    trk_note_on(t, 60, 100, VOICE_MCH_NONE);
     v = the_voice(t);
     for (k = 0; v && v->stage == 1u && k < 400000u; k++)
         blocks(1);
@@ -356,7 +356,7 @@ static times_t env_times(const char *name)
     t->p[P_SUS] = 127;                                    /* back up (an attack again), then the release */
     trk_note_off(t, 60);
     blocks(4);
-    trk_note_on(t, 60, 100);
+    trk_note_on(t, 60, 100, VOICE_MCH_NONE);
     v = the_voice(t);
     while (v && v->stage == 1u)
         blocks(1);
@@ -504,7 +504,7 @@ static double cost(uint32_t wave, uint32_t ft, uint32_t es)   /* ANALOG SOFT PAD
     t->p[P_FTYPE] = (int16_t)ft;
     t->p[P_ESYNC] = (int16_t)es;
     for (i = 0; i < 8u; i++)
-        trk_note_on(t, NOTES[i], 100);
+        trk_note_on(t, NOTES[i], 100, VOICE_MCH_NONE);
     blocks(FS / 4u / CTL);
     for (rep = 0; rep < 3u; rep++) {
         uint64_t i0 = instr_now();
@@ -575,7 +575,7 @@ static int demos(const char *dir)
         uint32_t st = FS / 8u / CTL;                      /* a 1/16 at 120 BPM */
         for (k = 0; k < 64u; k++) {
             t->p[P_E4] = (int16_t)(55 + (k < 32u ? k : 63u - k) * 60 / 31);
-            trk_note_on(t, LINE[k & 15u], (k & 3u) ? 90 : 120);
+            trk_note_on(t, LINE[k & 15u], (k & 3u) ? 90 : 120, VOICE_MCH_NONE);
             demo_blocks(f, st / 2u);
             trk_note_off(t, LINE[k & 15u]);
             demo_blocks(f, st - st / 2u);
@@ -592,7 +592,7 @@ static int demos(const char *dir)
         for (j = 0; j < 2u; j++) {
             const uint8_t *c = j ? PAD2 : PAD;
             for (k = 0; k < 4u; k++)
-                trk_note_on(t, c[k], 100);
+                trk_note_on(t, c[k], 100, VOICE_MCH_NONE);
             for (k = 0; k < 4u * FS / CTL; k++) {
                 uint32_t q = k * 2u < 4u * FS / CTL ? k : 4u * FS / CTL - k;
                 t->p[P_E4] = (int16_t)(20 + q * 95u / (2u * FS / CTL));
@@ -628,7 +628,7 @@ static int demos(const char *dir)
                     const uint8_t *c = (k & 2u) ? PAD2 : PAD;
                     uint32_t i;
                     for (i = 0; i < 4u; i++)
-                        trk_note_on(t, c[i], 100);
+                        trk_note_on(t, c[i], 100, VOICE_MCH_NONE);
                     demo_blocks(f, beat / 2u);
                     for (i = 0; i < 4u; i++)
                         trk_note_off(t, c[i]);

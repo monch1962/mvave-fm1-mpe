@@ -93,7 +93,7 @@ static int humanize(void)
     t = seq1(1);
     mod_seed = 0x2545F491u;
     for (i = 0; i < 8u; i++) {
-        trk_note_on(t, 40u + i, 100);
+        trk_note_on(t, 40u + i, 100, VOICE_MCH_NONE);
         rnd[i] = t->m_rnd;
     }
     ok = vel_of(t, 40) == 100u && t->m_vel == 100u;
@@ -101,7 +101,7 @@ static int humanize(void)
     mslot(t, 0, MS_RAND, MD_VEL, 32);
     mod_seed = 0x2545F491u;
     for (i = 0; i < 8u; i++) {
-        trk_note_on(t, 40u + i, 100);
+        trk_note_on(t, 40u + i, 100, VOICE_MCH_NONE);
         ok &= t->m_rnd == rnd[i];                        /* (the same draws: one per note) */
         v = vel_of(t, 40u + i);
         ok &= v == t->m_vel && v >= 1u && v <= 127u;     /* (the matrix's VEL source sees the new one) */
@@ -115,17 +115,17 @@ static int humanize(void)
     mslots_off(t);
     mslot(t, 1, MS_MODW, MD_VEL, 63);
     t->mw = 127;
-    trk_note_on(t, 50, 60);
+    trk_note_on(t, 50, 60, VOICE_MCH_NONE);
     ok = vel_of(t, 50) == 127u;                         /* (clamped at 127) */
     mslot(t, 1, MS_MODW, MD_VEL, -64);
-    trk_note_on(t, 51, 60);
+    trk_note_on(t, 51, 60, VOICE_MCH_NONE);
     ok &= vel_of(t, 51) == 1u;                          /* (and at 1: a note still plays) */
     t->mw = 0;
-    trk_note_on(t, 52, 60);
+    trk_note_on(t, 52, 60, VOICE_MCH_NONE);
     ok &= vel_of(t, 52) == 60u;
     mslot(t, 1, MS_MODW, MD_VEL, 0);                    /* (AMT 0: nothing) */
     t->mw = 127;
-    trk_note_on(t, 53, 60);
+    trk_note_on(t, 53, 60, VOICE_MCH_NONE);
     ok &= vel_of(t, 53) == 60u;
     t->mw = 0;
     trk_all_off(t);
@@ -254,7 +254,7 @@ static int kits(void)
         uint32_t i, live = 0;
         t->p[P_E0] = (int16_t)k;
         for (i = 0; i < 8u; i++)
-            trk_note_on(t, DRUM_LANE_NOTE[i], 110);
+            trk_note_on(t, DRUM_LANE_NOTE[i], 110, VOICE_MCH_NONE);
         events_block(CTL);
         mix_block(kbuf, CTL);
         for (i = 0; i < DV_NLANE; i++)
@@ -384,7 +384,7 @@ static int select_play(void)
     t->p[P_M1SRC] = MS_MODW; t->p[P_M1DST] = MD_VEL; t->p[P_M1AMT] = 63;
     turn(EN_SELECT, 127);
     ok &= t->mw == 127u;
-    trk_note_on(t, 60, 40);
+    trk_note_on(t, 60, 40, VOICE_MCH_NONE);
     ok &= t->m_vel == 127u;                             /* (the matrix's MODW: the wheel SELECT turns) */
     trk_all_off(t);
     t->p[P_M1SRC] = t->p[P_M1DST] = t->p[P_M1AMT] = 0;

@@ -117,11 +117,11 @@ static uint64_t phrase(void)
         t->p[P_SPRD] = (int16_t)ph_sprd;
         if (ph_ty >= 0)
             set_ins(t, ph_ty, ph_a, ph_b, ph_c, ph_mix);
-        trk_note_on(t, 48, 100);
-        trk_note_on(t, 55, 70);
-        trk_note_on(t, 64, 120);
+        trk_note_on(t, 48, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 55, 70, VOICE_MCH_NONE);
+        trk_note_on(t, 64, 120, VOICE_MCH_NONE);
         mixb(FS / 2u / CTL);
-        trk_note_on(t, 72, 90);
+        trk_note_on(t, 72, 90, VOICE_MCH_NONE);
         mixb(FS / 4u / CTL);
         trk_note_off(t, 48);
         trk_note_off(t, 55);
@@ -167,7 +167,7 @@ static void test_identity(void)
         track_t *t = &trk[0];
         fresh(0, preset_by_name(0, "SOFT PAD"));
         set_ins(t, IT_FLANGER, 64, 64, 64, 127);
-        trk_note_on(t, 60, 100);
+        trk_note_on(t, 60, 100, VOICE_MCH_NONE);
         mixb(FS / 4u / CTL);
         trk_note_off(t, 60);
         mixb(4u * FS / CTL);                          /* silent, the tail run out */
@@ -460,7 +460,7 @@ static double cost(int32_t ty, int32_t mix)
     t->p[P_SUS] = 127;
     set_ins(t, ty, 100, 100, 100, mix);
     for (i = 0; i < 8u; i++)
-        trk_note_on(t, NOTES[i], 100);
+        trk_note_on(t, NOTES[i], 100, VOICE_MCH_NONE);
     mixb(FS / 4u / CTL);
     for (rep = 0; rep < 3u; rep++) {
         uint64_t i0 = instr_now();

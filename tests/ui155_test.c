@@ -363,7 +363,7 @@ static int clean_sounds(track_t *t, uint32_t note)
     song.master_q12 = 4096;
     for (b = 0; b < 256u && (b < 1u || t->xf_on || t->eng_req != t->engine); b++)
         mix_block(o, CTL);
-    trk_note_on(t, note, 100);
+    trk_note_on(t, note, 100, VOICE_MCH_NONE);
     for (b = 0; b < 96u; b++) {
         memset(o, 0, sizeof o);
         mix_block(o, CTL);

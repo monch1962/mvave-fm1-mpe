@@ -167,7 +167,7 @@ static void torture(void)
                 uint32_t note = (f / (FS / 10u)) * 37u % 128u;
                 if (nk >= 8u)
                     trk_note_off(&trk[0], (((f / (FS / 10u)) - 8u) * 37u) % 128u);
-                trk_note_on(&trk[0], note, 1u + (note * 5u) % 127u);
+                trk_note_on(&trk[0], note, 1u + (note * 5u) % 127u, VOICE_MCH_NONE);
                 nk++;
             }
             for (k = 1; k < 8u; k++)                        /* STRC .. EXC: triangles of different rates */
@@ -229,7 +229,7 @@ static double cpu(uint32_t e, uint32_t pi, const int16_t *pe, uint32_t notes)
         trk[0].p[P_SUS] = 127;
         trk[0].p[P_AMODE] = 0;
         for (i = 0; i < notes; i++)
-            trk_note_on(&trk[0], CHORD8[i], 100);
+            trk_note_on(&trk[0], CHORD8[i], 100, VOICE_MCH_NONE);
         for (k = 0; k < nb / 2u + nb; k++) {
             if (k == nb / 2u)
                 i0 = instr_now();
@@ -345,7 +345,7 @@ static void play_preset(uint32_t f, uint32_t pi)
     for (k = 0; k < 24u && PHRASE[pi][k][3]; k++) {
         uint32_t t = PHRASE[pi][k][0] * (FS / 8u);
         if (f / (FS / 8u) == PHRASE[pi][k][0] && f >= t)
-            trk_note_on(&trk[0], PHRASE[pi][k][1], PHRASE[pi][k][3]);
+            trk_note_on(&trk[0], PHRASE[pi][k][1], PHRASE[pi][k][3], VOICE_MCH_NONE);
         if (f / (FS / 8u) == (uint32_t)PHRASE[pi][k][0] + PHRASE[pi][k][2])
             trk_note_off(&trk[0], PHRASE[pi][k][1]);
     }
@@ -363,7 +363,7 @@ static void play_model(uint32_t f, uint32_t md)
         trk[0].p[P_REL] = 70;
     }
     if (f % step < CTL && n < cnt)
-        trk_note_on(&trk[0], base + iv * n, 110);
+        trk_note_on(&trk[0], base + iv * n, 110, VOICE_MCH_NONE);
     if (f % step < CTL && n >= 1u && n <= cnt)
         trk_note_off(&trk[0], base + iv * (n - 1u));
 }

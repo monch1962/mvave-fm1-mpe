@@ -99,7 +99,7 @@ static int lfo(void)
     /* TRIG: NOTE restarts at PHS on a fresh phrase, FREE never */
     t->p[P_LPHASE] = 32;
     t->lfo_ph = 0x55555555u;
-    trk_note_on(t, 60, 100);
+    trk_note_on(t, 60, 100, VOICE_MCH_NONE);
     ok = t->lfo_ph == 32u << 25 && t->lfo_fade == 0;
     trk_all_off(t);
     for (b = 0; b < 2000u; b++) env_tick(t, &t->v[0]);
@@ -107,7 +107,7 @@ static int lfo(void)
     t->p[P_LTRIG] = 1;
     t->lfo_ph = 0x55555555u;
     t->lfo_fade = 32767;
-    trk_note_on(t, 62, 100);
+    trk_note_on(t, 62, 100, VOICE_MCH_NONE);
     ok &= t->lfo_ph == 0x55555555u && t->lfo_fade == 0;
     bad += check("TRIG NOTE: a fresh phrase restarts the LFO at PHS; FREE: never (FADE still restarts)", ok);
     t->p[P_LSYNC] = 5;

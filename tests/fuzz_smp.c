@@ -52,10 +52,10 @@ int main(int argc, char **argv)
             set_engine_of(&trk[j], e);
             trk[j].p[P_E0] = (int16_t)(SMP_NSETS + k);
             trk[j].p[P_E1] = (int16_t)(rnd() % 128u); trk[j].p[P_E2] = (int16_t)(rnd() % 128u);
-            trk_note_on(&trk[j], 24u + rnd() % 84u, 100);
+            trk_note_on(&trk[j], 24u + rnd() % 84u, 100, VOICE_MCH_NONE);
         }
         for (j = 0; j < 24u; j++) { mix_block(o, CTL); fm1_ms++; ed_service(); host_drain(); }
-        for (j = 0; j < NTRK; j++) trk_note_on(&trk[j], 24u + rnd() % 84u, 100);
+        for (j = 0; j < NTRK; j++) trk_note_on(&trk[j], 24u + rnd() % 84u, 100, VOICE_MCH_NONE);
         for (j = 0; j < 24u; j++) mix_block(o, CTL);
     }
     printf("fuzz_smp ok: %u iterations, %u valid slots\n", iters, valid);

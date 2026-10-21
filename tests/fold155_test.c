@@ -428,7 +428,7 @@ static double cost(int32_t fold)
     t->p[P_SUS] = 127;
     t->p[P_E7] = (int16_t)fold;
     for (i = 0; i < 8u; i++)
-        trk_note_on(t, NOTES[i], 100);
+        trk_note_on(t, NOTES[i], 100, VOICE_MCH_NONE);
     blocks(FS / 4u / CTL);
     for (rep = 0; rep < 3u; rep++) {
         uint64_t i0 = instr_now();
@@ -474,7 +474,7 @@ static int demo(const char *dir)
     t->p[P_LEVEL] = 110;
     for (k = 0; k < 64u; k++) {                       /* FOLD 0 -> 127 -> 0 over 8 s */
         t->p[P_E7] = (int16_t)((k < 32u ? k : 63u - k) * 127u / 31u);
-        trk_note_on(t, LINE[k & 15u], (k & 3u) ? 90 : 120);
+        trk_note_on(t, LINE[k & 15u], (k & 3u) ? 90 : 120, VOICE_MCH_NONE);
         for (j = 0; j < st; j++) {
             if (j == st / 2u)
                 trk_note_off(t, LINE[k & 15u]);
@@ -488,7 +488,7 @@ static int demo(const char *dir)
     for (k = 0; k < 3u; k++) {
         t->p[P_E7] = FOLDC[k];
         for (i = 0; i < 4u; i++)
-            trk_note_on(t, CH[k][i], 100);
+            trk_note_on(t, CH[k][i], 100, VOICE_MCH_NONE);
         for (j = 0; j < chord; j++) {
             if (j == chord * 3u / 4u)
                 for (i = 0; i < 4u; i++)

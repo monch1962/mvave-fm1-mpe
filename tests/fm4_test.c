@@ -59,7 +59,7 @@ static void render(uint32_t note, uint32_t vel, double *y)   /* track 1's voices
 {
     static int32_t b[CTL];
     uint32_t i, k;
-    trk_note_on(&trk[0], note, vel);
+    trk_note_on(&trk[0], note, vel, VOICE_MCH_NONE);
     for (i = 0; i < DUR; i += CTL) {
         if (i == REL)
             trk_note_off(&trk[0], note);

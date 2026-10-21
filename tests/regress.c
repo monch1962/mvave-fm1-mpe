@@ -347,7 +347,7 @@ static void job_cpu(const job_t *j)
             trk[p].p[P_E4] = SLC_LOOP;                  /* SLICE: its slices end by themselves; loop them */
 #endif
         for (i = 0; i < parts[p][2]; i++)
-            trk_note_on(&trk[p], ENGINES[parts[p][0]]->oneshot ? KIT[i] : NOTES[i] + 12u * p, 100);
+            trk_note_on(&trk[p], ENGINES[parts[p][0]]->oneshot ? KIT[i] : NOTES[i] + 12u * p, 100, VOICE_MCH_NONE);
     }
     for (k = 0; k < nb / 2u + nb; k++) {
         if (k == nb / 2u) {
@@ -357,7 +357,7 @@ static void job_cpu(const job_t *j)
         for (p = 0; p < NPART; p++)
             if (parts[p][2] != DRUM_HITS && ENGINES[parts[p][0]]->oneshot && k % 64u == 63u)
                 for (i = 0; i < parts[p][2]; i++)
-                    trk_note_on(&trk[p], KIT[i], 100);
+                    trk_note_on(&trk[p], KIT[i], 100, VOICE_MCH_NONE);
         if (drums_on && (k * CTL) % (FS / 8u) < CTL)
             drum_hit((k * CTL) / (FS / 8u));
         if (j->e == 0xFE && clk.env <= 0)
@@ -498,7 +498,7 @@ static int chk_budget(char *msg, uint32_t n)
                 trk_note_off(&trk[p], note);
                 held[p][note] = 0;
             } else {
-                trk_note_on(&trk[p], note, 60u + rnd(60));
+                trk_note_on(&trk[p], note, 60u + rnd(60), VOICE_MCH_NONE);
                 held[p][note] = 1;
             }
         }
@@ -540,19 +540,19 @@ static int chk_retrigger_budget(char *msg, uint32_t n)
             trk[p].p[P_SUS] = 127;
         }
         for (i = 0; i < NELEM(NOTES); i++)
-            trk_note_on(&trk[0], NOTES[i], 100);
+            trk_note_on(&trk[0], NOTES[i], 100, VOICE_MCH_NONE);
         for (i = 0; i < 3u; i++)
-            trk_note_on(&trk[1], 64u + 3u * i, 100);
-        trk_note_on(&trk[2], 74, 100);
+            trk_note_on(&trk[1], 64u + 3u * i, 100, VOICE_MCH_NONE);
+        trk_note_on(&trk[2], 74, 100, VOICE_MCH_NONE);
         blk();
         for (i = 0; i < NVOICE; i++)
             if (trk[0].v[i].active && trk[0].v[i].note == 52u)
                 old = &trk[0].v[i];
         trk_note_off(&trk[0], 52);
-        trk_note_on(&trk[3], 79, 100);
+        trk_note_on(&trk[3], 79, 100, VOICE_MCH_NONE);
         bad += !old || old->stage != 4u || voices_busy() != NVOICE;
         /* Same pitch, then a new pitch with all four local VOICE slots still active. */
-        trk_note_on(&trk[0], round ? 57u : 52u, 100);
+        trk_note_on(&trk[0], round ? 57u : 52u, 100, VOICE_MCH_NONE);
         i = voices_busy();
         worst = i > worst ? i : worst;
         bad += i != NVOICE;
@@ -584,7 +584,7 @@ static int chk_cap_mode_budget(char *msg, uint32_t n)
             trk[p].p[P_SUS] = 127;
         }
         for (i = 0; i < NVOICE; i++)
-            trk_note_on(&trk[0], 48u + i * 2u, 100);
+            trk_note_on(&trk[0], 48u + i * 2u, 100, VOICE_MCH_NONE);
         trk[0].p[P_VOICE] = MODE[round];
         if (round == 2u) {
             /* A lower cap must not protect old upper slots while the lower extras fade. */
@@ -594,13 +594,13 @@ static int chk_cap_mode_budget(char *msg, uint32_t n)
                 voice_kill(&trk[0].v[i]);
         }
         for (p = 1; p < NPART; p++) {
-            trk_note_on(&trk[p], 70u + p * 3u, 100);
+            trk_note_on(&trk[p], 70u + p * 3u, 100, VOICE_MCH_NONE);
             i = voices_busy();
             worst = i > worst ? i : worst;
             bad += i > NVOICE || !trk[0].v[0].gate || trk[0].v[0].note != 48u;
         }
         trk[1].p[P_VOICE] = V_POLY;
-        trk_note_on(&trk[1], 84, 100);
+        trk_note_on(&trk[1], 84, 100, VOICE_MCH_NONE);
         i = voices_busy();
         worst = i > worst ? i : worst;
         bad += i > NVOICE || !trk[0].v[0].gate;
@@ -634,13 +634,13 @@ static int chk_mode_budget(char *msg, uint32_t n)
             }
             trk[0].p[P_VOICE] = initial ? V_UNISON : V_POLY;
             if (initial)
-                trk_note_on(&trk[0], 48, 100);
+                trk_note_on(&trk[0], 48, 100, VOICE_MCH_NONE);
             else
-                for (i = 0; i < NVOICE; i++) trk_note_on(&trk[0], 48u + 2u * i, 100);
+                for (i = 0; i < NVOICE; i++) trk_note_on(&trk[0], 48u + 2u * i, 100, VOICE_MCH_NONE);
             bad += voices_busy() != NVOICE;
             trk[0].p[P_VOICE] = (int16_t)mode;
             for (p = 1; p < NPART; p++) {
-                trk_note_on(&trk[p], 72u + p, 100);
+                trk_note_on(&trk[p], 72u + p, 100, VOICE_MCH_NONE);
                 bad += voices_busy() > NVOICE || !trk[0].v[0].gate || !trk[p].v[0].gate;
             }
             blk();
@@ -681,8 +681,8 @@ static int chk_mode_release(char *msg, uint32_t n)
             for (to = V_POLY; to <= V_UNISON; to++)
                 for (order = 0; order < 2u; order++) {
                     mode_release_reset(engine ? 5u : 0u, from);
-                    trk_note_on(&trk[0], 60, 100);
-                    trk_note_on(&trk[0], 64, 100);
+                    trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
+                    trk_note_on(&trk[0], 64, 100, VOICE_MCH_NONE);
                     for (i = 0; i < 8u; i++) blk();
                     trk[0].p[P_VOICE] = (int16_t)to;
                     trk_note_off(&trk[0], order ? 60u : 64u);
@@ -694,13 +694,13 @@ static int chk_mode_release(char *msg, uint32_t n)
                 }
     for (mode = V_MONO; mode <= V_UNISON; mode++) {
         mode_release_reset(0, mode);
-        trk_note_on(&trk[0], 60, 100);
-        trk_note_on(&trk[0], 64, 100);
+        trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
+        trk_note_on(&trk[0], 64, 100, VOICE_MCH_NONE);
         trk[0].p[P_VOICE] = V_POLY;
         trk_note_off(&trk[0], 64);
         trk[0].p[P_VOICE] = (int16_t)mode;
         trk_note_off(&trk[0], 60);
-        trk_note_on(&trk[0], 72, 100);
+        trk_note_on(&trk[0], 72, 100, VOICE_MCH_NONE);
         trk_note_off(&trk[0], 72);
         bad += mode_release_gates() != 0 || trk[0].nmono != 0;
         cases++;
@@ -708,13 +708,13 @@ static int chk_mode_release(char *msg, uint32_t n)
             uint32_t lead = priority == 1u ? 72u : 80u, other = priority == 1u ? 80u : 72u;
             uint32_t want = mode == V_UNISON ? NVOICE : 1u;
             mode_release_reset(0, V_POLY);
-            trk_note_on(&trk[0], 48, 100);
-            trk_note_on(&trk[0], 64, 100);
+            trk_note_on(&trk[0], 48, 100, VOICE_MCH_NONE);
+            trk_note_on(&trk[0], 64, 100, VOICE_MCH_NONE);
             trk[0].p[P_VOICE] = (int16_t)mode;
             trk[0].p[P_PRIO] = (int16_t)priority;
-            trk_note_on(&trk[0], 72, 100);
-            trk_note_on(&trk[0], 76, 100);
-            trk_note_on(&trk[0], 80, 100);
+            trk_note_on(&trk[0], 72, 100, VOICE_MCH_NONE);
+            trk_note_on(&trk[0], 76, 100, VOICE_MCH_NONE);
+            trk_note_on(&trk[0], 80, 100, VOICE_MCH_NONE);
             trk_note_off(&trk[0], 48);
             trk_note_off(&trk[0], 64);
             trk_note_off(&trk[0], other);
@@ -789,11 +789,11 @@ static int chk_steal_fade(char *msg, uint32_t n)
         uint32_t ms = f * 1000u / FS, k0 = voice_kills;
         if (f == 0)
             for (i = 0; i < 7u; i++)
-                trk_note_on(&trk[0], N1[i], 90);
+                trk_note_on(&trk[0], N1[i], 90, VOICE_MCH_NONE);
         if (f == at(0.5))
-            trk_note_on(&trk[1], 74, 90);
+            trk_note_on(&trk[1], 74, 90, VOICE_MCH_NONE);
         if (ms >= 1000u && f % (FS / 2u) < CTL && ms < 3500u)
-            trk_note_on(&trk[ms / 500u % 2u ? 1u : 2u], 76u + ms / 250u, 90);
+            trk_note_on(&trk[ms / 500u % 2u ? 1u : 2u], 76u + ms / 250u, 90, VOICE_MCH_NONE);
         blk();
         if (voice_kills != k0 && nev < 8u)
             ev[nev++] = f;
@@ -836,10 +836,10 @@ static int chk_keep(char *msg, uint32_t n, uint32_t mode)
         trk[k].p[P_AMODE] = 0;
         trk[k].p[P_SUS] = 100;
     }
-    trk_note_on(&trk[0], 40, 100);
+    trk_note_on(&trk[0], 40, 100, VOICE_MCH_NONE);
     for (k = 0; k < 2u * FS / CTL; k++) {
         if (k % 3u == 0u)
-            trk_note_on(&trk[1u + k / 3u % 2u], 50u + k / 3u % 40u, 100);
+            trk_note_on(&trk[1u + k / 3u % 2u], 50u + k / 3u % 40u, 100, VOICE_MCH_NONE);
         blk();
         {
             const voice_t *v = &trk[0].v[0];
@@ -865,7 +865,7 @@ static int chk_voice_cap(char *msg, uint32_t n)
         t->p[P_VOICE] = mode ? V_UNISON : V_POLY;
         t->p[P_AMODE] = 0;
         for (k = 0; k < 8u; k++)
-            trk_note_on(t, 60u + 2u * k, 100);
+            trk_note_on(t, 60u + 2u * k, 100, VOICE_MCH_NONE);
         for (k = 0; k < FS / 2u / CTL; k++) {
             uint32_t a = 0;
             blk();

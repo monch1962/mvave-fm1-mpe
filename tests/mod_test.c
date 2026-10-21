@@ -99,11 +99,11 @@ static void fresh(uint32_t e, uint32_t pi)        /* the boot state (no FX tails
 static uint64_t phrase(void)
 {
     track_t *t = &trk[0];
-    trk_note_on(t, 60, 100);
-    trk_note_on(t, 64, 70);
-    trk_note_on(t, 67, 120);
+    trk_note_on(t, 60, 100, VOICE_MCH_NONE);
+    trk_note_on(t, 64, 70, VOICE_MCH_NONE);
+    trk_note_on(t, 67, 120, VOICE_MCH_NONE);
     blocks(FS / 2u / CTL);
-    trk_note_on(t, 72, 90);
+    trk_note_on(t, 72, 90, VOICE_MCH_NONE);
     blocks(FS / 4u / CTL);
     trk_note_off(t, 60);
     trk_note_off(t, 64);
@@ -230,8 +230,8 @@ static void test_math(void)
     slot(t, 3, MS_RAND, MD_PITCH, 20);
     {
         uint32_t rs = rng_state;
-        trk_note_on(t, 72, 127);
-        trk_note_on(t, 48, 1);
+        trk_note_on(t, 72, 127, VOICE_MCH_NONE);
+        trk_note_on(t, 48, 1, VOICE_MCH_NONE);
         check("RAND per note-on: its own generator (the shared rng untouched)", rng_state == rs && t->v[0].mrnd != t->v[1].mrnd);
     }
     mod_begin(t);
@@ -258,7 +258,7 @@ static void test_math(void)
     lfo_at(t, 32767);
     for (k_pw = 0; k_pw < 4u; k_pw++)
         slot(t, k_pw, MS_LFO, k_pw < 2u ? MD_CUT : MD_PITCH, 63);
-    trk_note_on(t, 120, 100);
+    trk_note_on(t, 120, 100, VOICE_MCH_NONE);
     lfo_at(t, 32767);                              /* (a note-on restarts the LFO and its FADE) */
     mod_begin(t);
     memset(&m, 0, sizeof m);
@@ -336,12 +336,12 @@ static void test_math(void)
     /* per-voice sources on a per-block destination: the latest note-on */
     fresh(0, 0);
     slot(t, 0, MS_VEL, MD_PAN, 63);
-    trk_note_on(t, 60, 20);
+    trk_note_on(t, 60, 20, VOICE_MCH_NONE);
     mod_begin(t);
     {
         int32_t p1 = t->p[P_PAN];
         mod_end(t);
-        trk_note_on(t, 64, 127);
+        trk_note_on(t, 64, 127, VOICE_MCH_NONE);
         mod_begin(t);
         check("VEL -> PAN: the latest note-on's velocity", p1 == ((((20 * 258) * 63) >> 6) * 127 >> 15) && t->p[P_PAN] == 63);
         mod_end(t);
@@ -382,7 +382,7 @@ static int pan_e2e(void)                       /* MODW -> PAN moves the pan the 
     slot(&trk[0], 0, MS_MODW, MD_PAN, 63);
     trk[0].p[P_CHOR] = trk[0].p[P_DLY] = trk[0].p[P_REV] = 0;   /* (the buses are in the middle) */
     pkt(0xB0, 1, 127);
-    trk_note_on(&trk[0], 60, 100);
+    trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
     blocks(FS / 10u / CTL);
     for (k = 0; k < FS / 10u / CTL; k++) {
         blocks(1);
@@ -466,7 +466,7 @@ static double cost(const uint8_t parts[NPART][3], int on)
             slot(t, 3, MS_LFO, MD_E1 + 2, 20);
         }
         for (i = 0; i < parts[p][2]; i++)
-            trk_note_on(t, NOTES[i] + 12u * p, 100);
+            trk_note_on(t, NOTES[i] + 12u * p, 100, VOICE_MCH_NONE);
     }
     blocks(FS / 2u / CTL);
     for (rep = 0; rep < 3u; rep++) {
@@ -534,9 +534,9 @@ static int demos(const char *dir)
     t->p[P_LRATE] = 30;
     slot(t, 0, MS_LFO, MD_CUT, 48);
     if ((f = demo_open(dir, "lfo_cut", 6u * FS / CTL * CTL))) {
-        trk_note_on(t, 48, 100);
-        trk_note_on(t, 55, 100);
-        trk_note_on(t, 60, 100);
+        trk_note_on(t, 48, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 55, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 60, 100, VOICE_MCH_NONE);
         demo_blocks(f, 5u * FS / CTL);
         trk_note_off(t, 48);
         trk_note_off(t, 55);
@@ -551,7 +551,7 @@ static int demos(const char *dir)
     slot(t, 1, MS_VEL, MD_CUT, 30);
     if ((f = demo_open(dir, "vel_amp", 16u * (FS / 4u / CTL) * CTL + FS / CTL * CTL))) {
         for (k = 0; k < 16u; k++) {
-            trk_note_on(t, 60u + (k & 3u) * 4u, 10u + k * 117u / 15u);
+            trk_note_on(t, 60u + (k & 3u) * 4u, 10u + k * 117u / 15u, VOICE_MCH_NONE);
             demo_blocks(f, FS / 4u / CTL);
             trk_note_off(t, 60u + (k & 3u) * 4u);
         }
@@ -567,7 +567,7 @@ static int demos(const char *dir)
     t->p[P_LFADE] = 0;
     slot(t, 0, MS_MODW, MD_VIB, 12);
     if ((f = demo_open(dir, "modw_vib", 5u * FS / CTL * CTL))) {
-        trk_note_on(t, 69, 100);
+        trk_note_on(t, 69, 100, VOICE_MCH_NONE);
         for (k = 0; k < 4u * FS / CTL; k++) {
             if (k % 32u == 0u)
                 pkt(0xB0, 1, k * 127u / (4u * FS / CTL));
@@ -587,7 +587,7 @@ static int demos(const char *dir)
     t->p[P_VOICE] = V_POLY;
     slot(t, 0, MS_LFO, MD_E1 + (int32_t)edit_by_label(e, "PW", 7), 40);
     if ((f = demo_open(dir, "lfo_trio_pw", 5u * FS / CTL * CTL))) {
-        trk_note_on(t, 57, 100);
+        trk_note_on(t, 57, 100, VOICE_MCH_NONE);
         demo_blocks(f, 4u * FS / CTL);
         trk_note_off(t, 57);
         demo_blocks(f, FS / CTL);
@@ -600,9 +600,9 @@ static int demos(const char *dir)
     slot(t, 0, MS_AT, MD_E1 + (int32_t)edit_by_label(e, "DRV", 6), 63);
     slot(t, 1, MS_AT, MD_CUT, 20);
     if ((f = demo_open(dir, "at_wheel_drv", 6u * FS / CTL * CTL))) {
-        trk_note_on(t, 48, 100);
-        trk_note_on(t, 55, 100);
-        trk_note_on(t, 64, 100);
+        trk_note_on(t, 48, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 55, 100, VOICE_MCH_NONE);
+        trk_note_on(t, 64, 100, VOICE_MCH_NONE);
         for (k = 0; k < 5u * FS / CTL; k++) {
             uint32_t ph = k * 254u / (5u * FS / CTL);
             if (k % 16u == 0u)

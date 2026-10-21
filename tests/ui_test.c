@@ -383,7 +383,7 @@ static int gm_hits_play(track_t *t)
     for (k = 0; k < 3u; k++) {
         uint64_t e = 0;
         int lane = 0;
-        trk_note_on(t, N[k], 100);
+        trk_note_on(t, N[k], 100, VOICE_MCH_NONE);
         for (b = 0; b < 16u; b++) {
             memset(o, 0, sizeof o);
             mix_block(o, CTL);
@@ -3662,7 +3662,7 @@ static int test_sample_alert(void)
     frame();
     ok = msg_is(nf);
     frames(1500);
-    trk_note_on(TSEL, 60, 100);
+    trk_note_on(TSEL, 60, 100, VOICE_MCH_NONE);
     frames(100);
     trk_note_off(TSEL, 60);
     frames(100);
@@ -9027,7 +9027,7 @@ static fm6_snd_t fm6_sound(void)                    /* the selected track's C4 a
     song.master_q12 = 4096;
     for (b = 0; b < 256u && (b < 1u || t->xf_on || t->eng_req != t->engine); b++)
         mix_block(o, CTL);                           /* (a block first: a pending panic_req, as SAVE held's, done) */
-    trk_note_on(t, 60, 100);
+    trk_note_on(t, 60, 100, VOICE_MCH_NONE);
     for (b = 0; b < 128u; b++) {
         memset(o, 0, sizeof o);
         mix_block(o, CTL);
@@ -9634,7 +9634,7 @@ static uint64_t qa_beat(uint32_t lanes, double *low)
                        (s == 9u ? 128u : 0u);
         for (l = 0; l < NLANE; l++)
             if (((hit & lanes) >> l) & 1u)
-                trk_note_on(t, NOTE[l], s == 0u ? 120u : 100u);
+                trk_note_on(t, NOTE[l], s == 0u ? 120u : 100u, VOICE_MCH_NONE);
         for (b = 0; b < 8u; b++) {
             track_render(t, o, CTL);
             for (i = 0; i < CTL; i++) {
@@ -9814,7 +9814,7 @@ static int test_edit_quick_actions(void)
                 memset(trk[k].v, 0, sizeof trk[k].v);
             memset(eng_mem, 0, sizeof eng_mem);
             for (j = 0; j < 2u; j++)
-                trk_note_on(&trk[3], NOTE2[j], 100);
+                trk_note_on(&trk[3], NOTE2[j], 100, VOICE_MCH_NONE);
             for (j = 0; j < 64u; j++) {
                 drum_mute[3] = (uint8_t)(r && j >= 8u && j < 24u ? 16u : 0u);   /* (HATOP muted 8 .. 23) */
                 track_render(&trk[3], o, CTL);

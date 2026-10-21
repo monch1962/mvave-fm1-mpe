@@ -82,7 +82,7 @@ static void voice_render(uint32_t note, uint32_t vel, double *y, uint32_t n, uin
 {
     static int32_t b[CTL];
     uint32_t i, k;
-    trk_note_on(&trk[0], note, vel);
+    trk_note_on(&trk[0], note, vel, VOICE_MCH_NONE);
     for (i = 0; i < n; i += CTL) {
         if (i == (rel / CTL) * CTL && rel)
             trk_note_off(&trk[0], note);
@@ -191,7 +191,7 @@ static void envelopes(void)
     for (i = 2; i <= 6u; i++)
         op_set(base, i, Z, LZ, 0, 1);
     setup(base, 0);
-    trk_note_on(&trk[0], 60, 100);
+    trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
     n = fm6_note_of(&trk[0], &trk[0].v[0]);
     e = &n->env[5];
     for (i = 0; i < FS * 2u / CTL; i++) {
@@ -223,7 +223,7 @@ static void envelopes(void)
             init_patch(base);
             op_set(base, 1, RR, L, 99, 1);
             setup(base, 0);
-            trk_note_on(&trk[0], 60, 100);
+            trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
             for (tl[r] = 0; tl[r] < 2000u && fm6_note_of(&trk[0], &trk[0].v[0])->env[5].ix == 0u; tl[r]++) {
                 static int32_t b[CTL];
                 track_render(&trk[0], b, CTL);
@@ -239,7 +239,7 @@ static void envelopes(void)
         init_patch(base);
         op_set(base, 1, RP, LP, 99, 1);
         setup(base, 0);
-        trk_note_on(&trk[0], 60, 100);
+        trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
         for (i = 0; i < FS * 2u / CTL && trk[0].v[0].active; i++) {
             static int32_t b[CTL];
             track_render(&trk[0], b, CTL);
@@ -271,10 +271,10 @@ static void retrigger(void)
         uint32_t k;
         fm6_unpack(FM6_FACTORY[6], base);              /* ORGAN: sustained */
         setup(base, 0);
-        trk_note_on(&trk[0], 60, 100);
+        trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
         for (i = 0; i < FS / 2u / CTL; i++) {
             if (i == (FS * 3u / 10u) / CTL)
-                trk_note_on(&trk[0], 60, 100);
+                trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE);
             track_render(&trk[0], blk, CTL);
             for (k = 0; k < CTL; k++) {
                 double d = fabs(blk[k] - prev);
@@ -532,7 +532,7 @@ static void voices(void)
     fm6_unpack(FM6_FACTORY[4], base);
     setup(base, 0);
     for (i = 0; i < 8u; i++)
-        trk_note_on(&trk[0], 48 + 2 * i, 100);
+        trk_note_on(&trk[0], 48 + 2 * i, 100, VOICE_MCH_NONE);
     track_render(&trk[0], b, CTL);
     for (i = 0; i < NVOICE; i++)
         n += trk[0].v[i].active;
@@ -564,7 +564,7 @@ static double mix_cost(const uint8_t *v, uint32_t notes)
     uint64_t i0;
     setup(v, 0);
     for (i = 0; i < notes; i++)
-        trk_note_on(&trk[0], 48 + 3 * i, 100);
+        trk_note_on(&trk[0], 48 + 3 * i, 100, VOICE_MCH_NONE);
     for (i = 0; i < 64u; i++)
         mix_block(o, CTL);
     i0 = instr_now();
@@ -631,7 +631,7 @@ static void demo(const char *dir, uint32_t pi)
             held = 0;
         }
         if (note && !(fl & 4u)) {
-            trk_note_on(&trk[0], note, fl & 1u ? 120 : 90);
+            trk_note_on(&trk[0], note, fl & 1u ? 120 : 90, VOICE_MCH_NONE);
             held = note;
         }
         for (i = 0; i < step; i += CTL) {

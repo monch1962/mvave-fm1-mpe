@@ -57,13 +57,18 @@ static volatile uint8_t midi_seen;       /* 1.5.5 (#208): bit per track, a MIDI 
 
 static uint32_t trk_index(const track_t *t) { return (uint32_t)(t - trk); }
 
+/* MPE mode (ROUTE_MPE, 6): the first member channel index (0..15) of the single lower zone, default 1
+ * (channel 2, per spec). The MPE part owns every channel from here up. Live setting only (step 8: UI). */
+static uint8_t mpe_base = 1;
+
 /* MENU > MIDI > MIDI IN (G_ROUTE, up to 1.1.5 GLO > SYSTEM ROUT): the first channel (0..15) of the block of four that
  * plays tracks 1..4, -1 with SEL, -2 with TRACK (each track its own: song.mch). Stored
- * 0 CH1-4, 1 SEL, then (1.2, Discussion #143) 2 CH5-8, 3 CH9-12, 4 CH13-16, (1.5.5, #202) 5 TRACK */
+ * 0 CH1-4, 1 SEL, then (1.2, Discussion #143) 2 CH5-8, 3 CH9-12, 4 CH13-16, (1.5.5, #202) 5 TRACK, (MPE, step 2) 6
+ * the first member channel (mpe_base: also the keys' echo channel while in MPE mode) */
 static int32_t midi_base(void)
 {
     uint32_t r = (uint32_t)song.g[G_ROUTE];
-    return r == ROUTE_SEL ? -1 : r == ROUTE_TRACK ? -2 : r ? (int32_t)(r - 1u) * 4 : 0;
+    return r == ROUTE_SEL ? -1 : r == ROUTE_TRACK ? -2 : r == ROUTE_MPE ? (int32_t)mpe_base : r ? (int32_t)(r - 1u) * 4 : 0;
 }
 /* MIDI channel 0..15 of track i (keys -> MIDI out): its channel in ROUT's block (SEL, CH1-4: 1..4); TRACK its own (OMNI,
  * OFF: as CH1-4) */
@@ -265,7 +270,7 @@ static __attribute__((noinline)) void arp_chord(track_t *t, const uint32_t *list
             t->arp_ch[i - 1u] = (uint8_t)nt;
         if (rec_on(t))
             rec_note(t, nt, 100);
-        trk_note_on(t, nt, 100);
+        trk_note_on(t, nt, 100, VOICE_MCH_NONE);          /* a sequencer/arp note: no MPE channel */
     }
 }
 
@@ -420,7 +425,7 @@ static __attribute__((noinline)) void arp_fire(track_t *t, uint32_t period)
         t->arp_note = (uint8_t)list[j];
         if (rec_on(t))
             rec_note(t, t->arp_note, 100);           /* recording: what the arp plays */
-        trk_note_on(t, t->arp_note, 100);
+        trk_note_on(t, t->arp_note, 100, VOICE_MCH_NONE);   /* an arp note: no MPE channel */
     }
 }
 
@@ -629,7 +634,7 @@ static void input_on(track_t *t, uint32_t note, uint32_t vel)
     if (t->p[P_AMODE])
         arp_add(t, note);
     else
-        trk_note_on(t, note, vel);
+        trk_note_on(t, note, vel, VOICE_MCH_NONE);   /* a key or non-MPE MIDI note: no MPE channel */
 }
 
 static int midi_note_held(const track_t *t, uint32_t note);
@@ -979,7 +984,7 @@ static __attribute__((noinline)) void seq_step(track_t *t, const step_t *s, uint
         seq_release(t);
     for (i = 0; i < m; i++)
         if (!((sk >> i) & 1u))
-            trk_note_on(t, nn[i], vv[i]);
+            trk_note_on(t, nn[i], vv[i], VOICE_MCH_NONE);   /* a sequence step note: no MPE channel */
     if (slide_in)                                   /* release what is not held over */
         for (i = 0; i < t->seq_n; i++) {
             for (j = 0; j < m && nn[j] != t->seq_notes[i]; j++)
@@ -1191,12 +1196,16 @@ static void seq_tick(track_t *t, uint32_t n)
 /* MIDI in: the track a channel plays (0..15): G_ROUTE CH1-4 (0) channels 1..4 their parts (5..16 never get
  * here: midi_event drops them), SEL (1) every channel the selected track; CH5-8 .. CH13-16 (2..4) as CH1-4 on
  * their four channels (midi_base); TRACK (5, 1.5.5) the first track set to the channel, else the first set to OMNI, else
- * none (dropped as a channel outside a block) */
+ * none (dropped as a channel outside a block). MPE (6, step 2) every member channel (mpe_base..15, default 2..16)
+ * the MPE part, one voice per note (its channel tagged in voice_t.mch); the master channel (below mpe_base, 1 by
+ * default) stays out of the zone */
 static uint8_t midi_route;                 /* the G_ROUTE events_block last saw (a change to a block: midi_route_block;
                                             * MIDI_ROUTE_AGAIN: TRACK's channels changed, the same again) */
 #define MIDI_ROUTE_AGAIN 0xFFu
 static int32_t midi_slot(uint32_t ch)      /* the track channel ch plays, -1 none (and with SEL) */
 {
+    if (song.g[G_ROUTE] == ROUTE_MPE)
+        return ch >= mpe_base ? 0 : -1;
     int32_t b = midi_base(), omni = -1;
     uint32_t i;
     if (b != -2)

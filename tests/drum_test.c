@@ -531,12 +531,12 @@ static void choke(void)
     host_tracks_init();
     host_preset(&trk[0], ENGI_DRUM, 0);
     trk[0].p[P_SUS] = 127;
-    trk_note_on(&trk[0], 46, 100);
+    trk_note_on(&trk[0], 46, 100, VOICE_MCH_NONE);
     for (i = 0; i < 20u; i++) {
         int32_t o[2 * CTL];
         mix_block(o, CTL);
     }
-    trk_note_on(&trk[0], 42, 100);
+    trk_note_on(&trk[0], 42, 100, VOICE_MCH_NONE);
     for (i = 0; i < 20u; i++) {
         int32_t o[2 * CTL];
         mix_block(o, CTL);
@@ -632,7 +632,7 @@ static void kit_fresh(void)
 static int32_t lane_alone(uint32_t note, uint32_t nb)
 {
     kit_fresh();
-    trk_note_on(&trk[0], note, 110);
+    trk_note_on(&trk[0], note, 110, VOICE_MCH_NONE);
     return blocks_peak(nb);
 }
 
@@ -650,16 +650,16 @@ static void lane_budget(void)
     host_preset(&trk[1], 0, 0);
     trk[1].p[P_VOICE] = V_POLY;
     trk[1].p[P_SUS] = 127;
-    trk_note_on(&trk[1], 48, 100);
-    trk_note_on(&trk[1], 60, 100);
+    trk_note_on(&trk[1], 48, 100, VOICE_MCH_NONE);
+    trk_note_on(&trk[1], 60, 100, VOICE_MCH_NONE);
     for (i = 0; i < NELEM(KIT); i++)
-        trk_note_on(&trk[0], KIT[i], 110);
+        trk_note_on(&trk[0], KIT[i], 110, VOICE_MCH_NONE);
     blocks_peak(2);
     owner = drum_kit_of(&trk[0])[DV_TOM].owner;
     kills = voice_kills;
     bad += voices_busy() != NVOICE || !owner;
     for (i = 0; i < 16u; i++) {
-        trk_note_on(&trk[0], TOM[i % NELEM(TOM)], 110);
+        trk_note_on(&trk[0], TOM[i % NELEM(TOM)], 110, VOICE_MCH_NONE);
         bad += drum_kit_of(&trk[0])[DV_TOM].owner != owner || voices_busy() != NVOICE || voice_kills != kills;
         blocks_peak(1);
         bad += voices_on(&trk[1]) != 2u || voices_on(&trk[0]) != NELEM(KIT);
@@ -671,10 +671,10 @@ static void lane_budget(void)
     host_preset(&trk[2], 0, 0);
     trk[2].p[P_VOICE] = V_MONO;
     trk_note_off(&trk[0], TOM[3]);
-    trk_note_on(&trk[2], 72, 100);
+    trk_note_on(&trk[2], 72, 100, VOICE_MCH_NONE);
     bad = trk[0].v[owner - 1u].stage != 4u;
     /* Retrigger before the stolen voice's fade block must acquire room again. */
-    trk_note_on(&trk[0], TOM[0], 110);
+    trk_note_on(&trk[0], TOM[0], 110, VOICE_MCH_NONE);
     bad += voices_busy() != NVOICE || drum_kit_of(&trk[0])[DV_TOM].owner != owner;
     blocks_peak(2);
     bad += voices_busy() != NVOICE || !trk[2].v[0].active || trk[2].v[0].note != 72;
@@ -695,7 +695,7 @@ static double lane_mix(uint32_t note, uint32_t lane, int16_t level, uint32_t nb,
     uint32_t i, k;
     kit_fresh();
     trk[0].p[P_LN0 + lane] = level;
-    trk_note_on(&trk[0], note, 110);
+    trk_note_on(&trk[0], note, 110, VOICE_MCH_NONE);
     *hash = 1469598103934665603ull;
     for (i = 0; i < nb; i++) {
         track_render(&trk[0], o, CTL);
@@ -741,7 +741,7 @@ static void engine(void)
         quiet += lane_alone(KIT[i], 8) < 200;
     kit_fresh();
     for (i = 0; i < 8u; i++)
-        trk_note_on(&trk[0], KIT[i], 110);
+        trk_note_on(&trk[0], KIT[i], 110, VOICE_MCH_NONE);
     pk = blocks_peak(2);
     nv = voices_on(&trk[0]);
     for (k = 0; k < DV_NLANE; k++) {
@@ -758,9 +758,9 @@ static void engine(void)
            why, why[0] ? "FAIL" : "ok");
     /* the same lane from two notes (low floor tom, then low tom): the second cuts the first */
     kit_fresh();
-    trk_note_on(&trk[0], 41, 110);
+    trk_note_on(&trk[0], 41, 110, VOICE_MCH_NONE);
     blocks_peak(4);
-    trk_note_on(&trk[0], 43, 110);
+    trk_note_on(&trk[0], 43, 110, VOICE_MCH_NONE);
     blocks_peak(2);
     k = voices_on(&trk[0]) == 1u && drum_kit_of(&trk[0])[DV_TOM].owner &&
         trk[0].v[drum_kit_of(&trk[0])[DV_TOM].owner - 1u].note == 43 && drum_kit_of(&trk[0])[DV_TOM].st == DRUM_GM[43 - 35][1];
@@ -772,7 +772,7 @@ static void engine(void)
     trk[0].p[P_SUS] = 0;
     trk[0].p[P_REL] = 0;
     trk[0].p[P_DEC] = 0;
-    trk_note_on(&trk[0], 49, 110);                       /* crash */
+    trk_note_on(&trk[0], 49, 110, VOICE_MCH_NONE);                       /* crash */
     blocks_peak(1);
     trk_note_off(&trk[0], 49);
     pk = blocks_peak(FS / 2u / CTL);
@@ -795,7 +795,7 @@ static void engine(void)
                 double s = 0;
                 kit_fresh();
                 trk[0].p[P_CHOR] = trk[0].p[P_DLY] = trk[0].p[P_REV] = 0;   /* dry: no tail of the run before */
-                trk_note_on(&trk[0], KIT8[i], 120);
+                trk_note_on(&trk[0], KIT8[i], 120, VOICE_MCH_NONE);
                 if (k)
                     trk_note_off(&trk[0], KIT8[i]);
                 for (b = 0; b < FS / 8u / CTL; b++) {
@@ -817,8 +817,8 @@ static void engine(void)
     kit_fresh();
     trk[0].p[P_VOICE] = V_MONO;
     trk[0].p[P_GLIDE] = 60;
-    trk_note_on(&trk[0], 36, 110);
-    trk_note_on(&trk[0], 38, 110);
+    trk_note_on(&trk[0], 36, 110, VOICE_MCH_NONE);
+    trk_note_on(&trk[0], 38, 110, VOICE_MCH_NONE);
     blocks_peak(2);
     k = voices_on(&trk[0]) == 2u && drum_kit_of(&trk[0])[DV_KICK].v.live && drum_kit_of(&trk[0])[DV_SNARE].v.live;
     printf("drum_test: engine: VOICE MONO and GLIDE set: kick and snare still sound together: %s\n", k ? "ok" : "FAIL");
@@ -1043,13 +1043,13 @@ static void kit_keys(void)
         for (i = 0; i < 8u; i++) {
             kit_fresh();
             trk[0].p[P_E0] = (int16_t)(DK_80 + k);
-            trk_note_on(&trk[0], KIT[i], 110);
+            trk_note_on(&trk[0], KIT[i], 110, VOICE_MCH_NONE);
             quiet += blocks_peak(8) < 200;
         }
         kit_fresh();
         trk[0].p[P_E0] = (int16_t)(DK_80 + k);
         for (i = 0; i < 8u; i++)
-            trk_note_on(&trk[0], KIT[i], 110);
+            trk_note_on(&trk[0], KIT[i], 110, VOICE_MCH_NONE);
         pk = blocks_peak(2);
         nv = voices_on(&trk[0]);
         for (i = 0; i < DV_NLANE; i++)
@@ -1201,7 +1201,7 @@ static void demo_seq(const char *dir, const char *name, const uint8_t (*ev)[3], 
         while (off < e && (ev[off][0] + 1u) * sixteenth <= f)   /* a 1/16 long (the hit rings on) */
             trk_note_off(&trk[0], ev[off++][1]);
         while (e < nev && ev[e][0] * sixteenth <= f) {
-            trk_note_on(&trk[0], ev[e][1], ev[e][2]);
+            trk_note_on(&trk[0], ev[e][1], ev[e][2], VOICE_MCH_NONE);
             e++;
         }
         mix_block(o, CTL);
@@ -1241,7 +1241,7 @@ static uint64_t seq_hash(const uint8_t (*ev)[3], uint32_t nev, uint32_t frames, 
         while (off < e && (ev[off][0] + 1u) * sixteenth <= f)
             trk_note_off(&trk[0], ev[off++][1]);
         while (e < nev && ev[e][0] * sixteenth <= f) {
-            trk_note_on(&trk[0], ev[e][1], ev[e][2]);
+            trk_note_on(&trk[0], ev[e][1], ev[e][2], VOICE_MCH_NONE);
             e++;
         }
         mix_block(o, CTL);

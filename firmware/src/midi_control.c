@@ -100,9 +100,15 @@ static void midi_release(uint32_t ch, uint32_t note)
 }
 
 /* a MIDI note-on (ch, note) of track t: its chord (chord.c) or the note alone. A note another key or MIDI
- * note holds already sounds: not started again */
+ * note holds already sounds: not started again. In MPE mode (ROUTE_MPE) a note passes 1:1 to the MPE part's
+ * voice pool, tagged with its MIDI channel (voice.c trk_note_on: per-note expression land), no chord/arp/record */
 static void midi_play(track_t *t, uint32_t ch, uint32_t note, uint32_t vel)
 {
+    if (song.g[G_ROUTE] == ROUTE_MPE) {
+        if (!midi_note_held(t, note) && !midi_local_held(t, note))
+            trk_note_on(t, note, vel, (uint8_t)ch);
+        return;
+    }
     uint8_t nn[CHORD_MAX];
     uint32_t n = chord_build(t, note, nn), i, f = 0;
     if (n > 1u || nn[0] != note)

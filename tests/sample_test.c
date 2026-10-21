@@ -54,7 +54,7 @@ static void render(uint32_t eng, int16_t src, uint32_t note, uint32_t *ended_at,
     t->p[P_DEC] = 127;
     t->p[P_SUS] = 127;
     t->p[P_REL] = 10;
-    trk_note_on(t, note, 100);
+    trk_note_on(t, note, 100, VOICE_MCH_NONE);
     v = voice_of(t, note);
     if (zone)
         *zone = v ? v->s[eng == ENGI_SAMPLE ? 4 : 0] : -1;

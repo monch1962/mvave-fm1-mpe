@@ -75,7 +75,7 @@ static void voice_render(const int16_t *e, uint32_t note, double *y, uint32_t n)
     static int32_t b[CTL];
     uint32_t i, k, skip = FS / 10u / CTL;
     setup(e);
-    trk_note_on(&trk[0], note, 100);
+    trk_note_on(&trk[0], note, 100, VOICE_MCH_NONE);
     for (i = 0; i < skip; i++)
         track_render(&trk[0], b, CTL);
     for (i = 0; i < n; i += CTL) {
@@ -287,7 +287,7 @@ static void dc_and_clip(void)
             setup(e);
             trk[0].p[P_LEVEL] = 127;
             for (i = 0; i < 8u; i++)
-                trk_note_on(&trk[0], 24 + 12 * i, 127);
+                trk_note_on(&trk[0], 24 + 12 * i, 127, VOICE_MCH_NONE);
             for (i = 0; i < FS / CTL; i++) {
                 uint32_t j;
                 track_render(&trk[0], b, CTL);
@@ -297,7 +297,7 @@ static void dc_and_clip(void)
             setup(e);
             trk[0].p[P_LEVEL] = 127;
             for (i = 0; i < 8u; i++)
-                trk_note_on(&trk[0], 24 + 12 * i, 127);
+                trk_note_on(&trk[0], 24 + 12 * i, 127, VOICE_MCH_NONE);
             for (i = 0; i < FS / CTL; i++) {
                 mix_block(o, CTL);
                 for (uint32_t j = 0; j < 2u * CTL; j++)
@@ -316,7 +316,7 @@ static void determinism(void)
     for (pi = 0; pi < ENG_NOISE.npresets; pi++) {
         const int16_t *e = pe(pi);
         setup(e);
-        trk_note_on(&trk[0], 62, 100);
+        trk_note_on(&trk[0], 62, 100, VOICE_MCH_NONE);
         for (i = 0; i < FS / 2 / CTL; i++) {
             track_render(&trk[0], b, CTL);
             for (k = 0; k < CTL; k++)
@@ -325,7 +325,7 @@ static void determinism(void)
         trk_note_off(&trk[0], 62);
         for (i = 0; i < 4 * FS / CTL; i++)            /* released, silent */
             track_render(&trk[0], b, CTL);
-        trk_note_on(&trk[0], 62, 100);
+        trk_note_on(&trk[0], 62, 100, VOICE_MCH_NONE);
         for (i = 0; i < FS / 2 / CTL; i++) {
             track_render(&trk[0], b, CTL);
             for (k = 0; k < CTL; k++)
@@ -353,7 +353,7 @@ static double mix_cost(const int16_t *e, uint32_t notes)
     uint64_t i0;
     setup(e);
     for (i = 0; i < notes; i++)
-        trk_note_on(&trk[0], 48 + 3 * i, 100);
+        trk_note_on(&trk[0], 48 + 3 * i, 100, VOICE_MCH_NONE);
     for (i = 0; i < 64u; i++)
         mix_block(o, CTL);
     i0 = instr_now();
@@ -412,7 +412,7 @@ static void demo(const char *dir, uint32_t pi)
             held = 0;
         }
         if (note && !(fl & 4u)) {
-            trk_note_on(&trk[0], note, fl & 1u ? 120 : 90);
+            trk_note_on(&trk[0], note, fl & 1u ? 120 : 90, VOICE_MCH_NONE);
             held = note;
         }
         for (i = 0; i < step; i += CTL) {

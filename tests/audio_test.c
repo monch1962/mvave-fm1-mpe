@@ -65,10 +65,10 @@ static void overload(void)
     int32_t out[2 * CTL];
     fresh();
     trk[0].p[P_VOICE] = V_MONO;
-    trk_note_on(&trk[0], 40, 100);
+    trk_note_on(&trk[0], 40, 100, VOICE_MCH_NONE);
     trk[1].p[P_VOICE] = V_POLY;
-    trk_note_on(&trk[1], 48, 100);
-    trk_note_on(&trk[1], 60, 100);
+    trk_note_on(&trk[1], 48, 100, VOICE_MCH_NONE);
+    trk_note_on(&trk[1], 60, 100, VOICE_MCH_NONE);
     lead = held(&trk[0], 40); bass = held(&trk[1], 48); extra = held(&trk[1], 60);
     shed_voice();
     check("overload keeps each part's MONO lead and lowest POLY note",
@@ -80,7 +80,7 @@ static void overload(void)
 
     fresh();
     host_preset(&trk[0], ENGI_DRUM, 0);
-    trk_note_on(&trk[0], 36, 100); trk_note_on(&trk[0], 38, 100);
+    trk_note_on(&trk[0], 36, 100, VOICE_MCH_NONE); trk_note_on(&trk[0], 38, 100, VOICE_MCH_NONE);
     lead = held(&trk[0], 36); extra = held(&trk[0], 38);
     shed_voice(); mix_block(out, CTL);
     check("overload frees a held one-shot drum without waiting for its decay",
@@ -88,13 +88,13 @@ static void overload(void)
 
     fresh();
     trk[0].p[P_VOICE] = V_UNISON;
-    trk_note_on(&trk[0], 55, 100);
+    trk_note_on(&trk[0], 55, 100, VOICE_MCH_NONE);
     shed_voice(); mix_block(out, CTL);
     check("UNISON loses an extra voice and retains its lead", trk[0].v[0].active && trk[0].v[0].gate && voices_busy() == NVOICE - 1u);
 
     for (mode = V_MONO; mode <= V_LEGATO; mode++) {
         fresh(); trk[0].p[P_VOICE] = V_POLY;
-        for (i = 0; i < NVOICE; i++) trk_note_on(&trk[0], 48u + 2u * i, 100);
+        for (i = 0; i < NVOICE; i++) trk_note_on(&trk[0], 48u + 2u * i, 100, VOICE_MCH_NONE);
         trk[0].p[P_VOICE] = (int16_t)mode;
         shed_voice(); mix_block(out, CTL);
         check("overload can reclaim stale POLY voices after a MONO / LEGATO change",
@@ -103,7 +103,7 @@ static void overload(void)
 
     fresh();
     trk[0].p[P_VOICE] = V_POLY;
-    trk_note_on(&trk[0], 60, 100); trk_note_on(&trk[0], 64, 100);
+    trk_note_on(&trk[0], 60, 100, VOICE_MCH_NONE); trk_note_on(&trk[0], 64, 100, VOICE_MCH_NONE);
     lead = held(&trk[0], 60); extra = held(&trk[0], 64);
     trk_note_off(&trk[0], 60); trk_note_off(&trk[0], 64);
     lead->env = 10000; extra->env = 10;
@@ -161,7 +161,7 @@ static double usb_run(uint32_t fixed, uint32_t master, int dac_is_tap_scaled_ok[
     lim_env = LIM_T; dc_l = dc_r = dce_l = dce_r = 0;    /* (the master's state as at power-on: runs compare) */
     trk[0].p[P_VOICE] = V_POLY;
     trk[0].p[P_DIST] = trk[0].p[P_CHOR] = trk[0].p[P_DLY] = trk[0].p[P_REV] = 0;   /* (no tails between runs) */
-    trk_note_on(&trk[0], 48, 110); trk_note_on(&trk[0], 55, 110); trk_note_on(&trk[0], 64, 110);
+    trk_note_on(&trk[0], 48, 110, VOICE_MCH_NONE); trk_note_on(&trk[0], 55, 110, VOICE_MCH_NONE); trk_note_on(&trk[0], 64, 110, VOICE_MCH_NONE);
     fx_usb_fixed = (uint8_t)fixed;
     song.master_q12 = master;
     dac_is_tap_scaled_ok[0] = 1;
