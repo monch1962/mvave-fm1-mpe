@@ -475,6 +475,11 @@ grid lives in the steps themselves, so every engine has it:
   range 0..5. The channels are the project's, in FUN10's spare bytes (below: "MIDI IN TRACK in a project"); a project
   with TRACK stores id 14 as the block its channels make (channels 5..8 in order: CH5-8 ..), else CH1-4, so 1.5.1 and
   earlier (which never read those bytes) open it with that block.
+   The MPE fork (branch mpe, append-only): 6 "MPE" — one instrument, one voice per note (MPE, per-channel
+   pitch bend / aftertouch / CC74). A single lower zone: member channels mpe_base..15 on the MPE part, the master
+   channel 1 outside (midi_event drops it); mpe_base is a **live** setting (default 1 = channel 2, not in the
+   project), edited on the device by MENU setting 26, whose row reads **BASE CH** in MPE mode (CH1..CH16) and
+   T1 CHANNEL otherwise. `DESC` of id 14 gives range 0..6 and the seven names.
   Neither setting affects this SysEx protocol or MIDI clock. The
   id, `G_COUNT` (27) and the project format are unchanged; it is saved and loaded with the project like
   the other globals. The editor shows it under GLOBAL > MIDI. 1.2: the GLO > GLOBAL and GLO > SYSTEM pages are
