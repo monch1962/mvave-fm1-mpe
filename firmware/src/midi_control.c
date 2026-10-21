@@ -331,6 +331,7 @@ static void midi_control(uint32_t ch, uint32_t cc, uint32_t value)
     case 121:                                      /* Reset All Controllers, keep bend sensitivity */
         c->bend = 0;
         c->wheel = 0;
+        c->at = 0;
         c->rpn_msb = c->rpn_lsb = 127;
         midi_expression_channel(ch);
         midi_pedal_up(ch);
@@ -347,9 +348,9 @@ static void midi_control(uint32_t ch, uint32_t cc, uint32_t value)
         c->rpn_msb = c->rpn_lsb = 127;
         break;
     case 6: case 38:
-        if (!c->rpn_msb && !c->rpn_lsb) {           /* RPN 0: +/-0..24 semitones, 0..99 cents */
+        if (!c->rpn_msb && !c->rpn_lsb) {           /* RPN 0: +/-0..96 semitones (the MPE spec's range), 0..99 cents */
             if (cc == 6u)
-                c->semis = (uint8_t)(value > 24u ? 24u : value);
+                c->semis = (uint8_t)(value > 96u ? 96u : value);
             else
                 c->cents = (uint8_t)(value > 99u ? 99u : value);
             midi_expression_channel(ch);
@@ -378,6 +379,7 @@ static void __attribute__((noinline)) midi_route_block(void)
             if (midi_notes[ch][note])
                 midi_release(ch, note);
         c->pedal = c->wheel = 0;
+        c->at = 0;
         c->bend = 0;
         c->rpn_msb = c->rpn_lsb = 127;
     }
@@ -404,8 +406,11 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
     } else if (st == 0xB0u) {
         mod_midi(midi_track(ch), st, d1, d2);
         midi_control(ch, d1, d2);
-    } else if (st == 0xD0u)
-        mod_midi(midi_track(ch), st, d1, d2);
+    } else if (st == 0xD0u) {
+        midi_channel(ch)->at = (uint8_t)d1;           /* MPE (step 5): the channel keeps its aftertouch, per voice */
+        if (song.g[G_ROUTE] != ROUTE_MPE)             /* non-MPE channels: the modulation matrix as ever */
+            mod_midi(midi_track(ch), st, d1, d2);
+    }
     else if (st == 0xC0u && mpc_io)                /* Program Change: the main loop loads it (ui.c midi_pc_poll) */
         mpc_io[trk_index(midi_track(ch))] = (uint8_t)(0x80u | d1);
 }

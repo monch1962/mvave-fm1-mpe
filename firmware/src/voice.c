@@ -763,6 +763,8 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
                 m.inc += (uint32_t)((int32_t)(m.inc >> 12) * m.fine);
         }
         m.cutoff = ((lfo * p[P_LD_FLT]) >> 7) + ((m.envq15 * p[P_ED_FLT]) >> 7);
+        if (v->mch != VOICE_MCH_NONE)                       /* MPE (step 5): channel pressure brightens this note's filter */
+            m.cutoff += (int32_t)midi_ch[v->mch].at << 7;
         if (v->vel > 110)                               /* accent opens the filter with the env */
             m.cutoff += (m.envq15 * 24) >> 7;
         m.shape = (64 << 8) + ((lfo * p[P_LD_SHP]) >> 7) + ((m.envq15 * p[P_ED_SHP]) >> 7);
