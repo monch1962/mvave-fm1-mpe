@@ -365,6 +365,7 @@ typedef struct {
     int16_t bend;                           /* signed 14-bit value, zero = centre */
     uint8_t wheel, pedal, targets;
     uint8_t at;                              /* MPE (step 5): this channel's aftertouch, 0..127 */
+    uint8_t cc74;                            /* MPE (step 6): this channel's CC74 timbre, 0..127, 64 the neutral */
     uint8_t owned[NTRK];                    /* held/pedal notes per track, at most 128 per channel */
     uint8_t ready, semis, cents;
     uint8_t rpn_msb, rpn_lsb;

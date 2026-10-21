@@ -416,6 +416,7 @@ typedef struct {                 /* a sounding note (msfa's note): 244 bytes */
     uint8_t fixed;               /* bit k: operator k has a fixed frequency */
     uint8_t live, down, rsv;
     int32_t dc;                  /* (eng_fm6.c) the output's DC blocker */
+    int32_t lp, lp_k;            /* (eng_fm6.c) the MPE per-note timbre low-pass: state and Q15 coefficient */
 } fm6_note_t;
 
 static const int32_t FM6_COARSE[32] = {
@@ -481,6 +482,8 @@ static void fm6_note_init(fm6_note_t *n, const uint8_t *p, int32_t note, int32_t
             n->op[k].phase = n->op[k].gain_out = 0;
         n->fb[0] = n->fb[1] = 0;
         n->dc = 0;
+        n->lp = 0;
+        n->lp_k = 32767;                        /* the MPE timbre low-pass: open (no filtering) */
     }
     n->fixed = 0;
     for (k = 0; k < 6u; k++) {

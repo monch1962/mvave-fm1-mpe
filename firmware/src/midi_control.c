@@ -18,6 +18,7 @@ static midi_channel_t *midi_channel(uint32_t ch)
     midi_channel_t *c = &midi_ch[ch];
     if (!c->ready) {
         c->semis = 2;
+        c->cc74 = 64;                               /* neutral timbre (the MIDI centre) */
         c->rpn_msb = c->rpn_lsb = 127;
         c->ready = 1;
     }
@@ -332,6 +333,7 @@ static void midi_control(uint32_t ch, uint32_t cc, uint32_t value)
         c->bend = 0;
         c->wheel = 0;
         c->at = 0;
+        c->cc74 = 64;
         c->rpn_msb = c->rpn_lsb = 127;
         midi_expression_channel(ch);
         midi_pedal_up(ch);
@@ -346,6 +348,12 @@ static void midi_control(uint32_t ch, uint32_t cc, uint32_t value)
     case 100: c->rpn_lsb = (uint8_t)value; break;
     case 99: case 98:                              /* NRPN selection cancels RPN data entry */
         c->rpn_msb = c->rpn_lsb = 127;
+        break;
+    case 74:                                       /* MPE (step 6): the channel's timbre, per note; other modes keep the */
+        if (song.g[G_ROUTE] == ROUTE_MPE)          /* CC map's engine CUT (midi_cc_map) */
+            c->cc74 = (uint8_t)value;
+        else
+            midi_cc_map(midi_track(ch), cc, value);
         break;
     case 6: case 38:
         if (!c->rpn_msb && !c->rpn_lsb) {           /* RPN 0: +/-0..96 semitones (the MPE spec's range), 0..99 cents */
@@ -380,6 +388,7 @@ static void __attribute__((noinline)) midi_route_block(void)
                 midi_release(ch, note);
         c->pedal = c->wheel = 0;
         c->at = 0;
+        c->cc74 = 64;
         c->bend = 0;
         c->rpn_msb = c->rpn_lsb = 127;
     }

@@ -387,9 +387,17 @@ static void fm6_render(track_t *t, voice_t *v, int32_t *out, uint32_t len, const
     k = t->p[P_VOICE] == V_UNISON ? VOICE_FS * 2 / 5 : VOICE_FS;
     a = mulq15(m->amp0, k);
     da = (mulq15(m->amp1, k) - a) >> FM6_LG_N;
+    if (v->mch != VOICE_MCH_NONE) {                        /* MPE (step 6): the note's CC74 timbre -> its low-pass */
+        int32_t d = (int32_t)midi_ch[v->mch].cc74 - 64;    /* -64..63, 0 neutral (the LinnStrument's Y centre) */
+        n->lp_k = 32767 - (d < 0 ? -d : 0) * 260;          /* arms darken it, to ~0.49 at cc74 0; arms fully open */
+    }
     for (i = 0; i < FM6_N; i++) {
         int32_t x = bus[i] - n->dc;
         n->dc += x >> 10;                                 /* a one-pole high-pass, ~7 Hz: FM puts sidebands at 0 Hz */
+        if (v->mch != VOICE_MCH_NONE) {                   /* MPE (step 6): the per-note timbre low-pass, a Q15 1-pole */
+            n->lp += (int32_t)(((int64_t)(x - n->lp) * n->lp_k) >> 15);
+            x = n->lp;
+        }
         a += da;
         out[i] += (int32_t)(((int64_t)x * a) >> 26);
     }
