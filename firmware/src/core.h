@@ -8,7 +8,10 @@
 #include <stdint.h>
 
 /* ------------------------------------------------------------ sizes --- */
-#define NVOICE 8                 /* voices per part, and the budget shared by all parts */
+#ifndef NVOICE
+#define NVOICE 8                 /* voices per part, and the budget shared by all parts. -DNVOICE=12/16 raises it:
+                                  * step 7, the voices render across the two cores (Clipper's build option) */
+#endif
 #define NPART 4                  /* synth parts: tracks 1..4 */
 #define NTRK NPART               /* tracks (the formats and the protocol count these): every track is a part */
 #define NSTEP 64
