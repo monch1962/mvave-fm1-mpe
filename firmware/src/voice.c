@@ -304,6 +304,7 @@ static void voice_start(track_t *t, voice_t *v, uint32_t note, uint32_t vel, int
     v->pitch16 = (int32_t)note * 16;
     v->mvel = t->m_vel;                                 /* mod.c: the note's VEL and RAND */
     v->mrnd = t->m_rnd;
+    v->mch = VOICE_MCH_NONE;                            /* MPE: ROUTE_MPE note-ons set the channel (midi_control.c) */
     t->m_vi = (uint8_t)(v - t->v);
     glide_set(t, v, glide);
     if (!sounding) {
