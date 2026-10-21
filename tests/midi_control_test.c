@@ -979,9 +979,67 @@ static int pc_test(void)
     bad += check("  MIDI LEARN waiting: a PC is not taken for a CC, it loads", ok);
     return bad;
 }
+/* MPE mode (steps 2..6): the single lower zone (member channels mpe_base..15) is the MPE part, one voice per
+ * note, tagged with its channel (voice_t.mch); bend / aftertouch / CC74 stay per channel and reach only that
+ * channel's voices; RPN 0 sets the bend range; notes bypass chord / arp / record; the master channel (1) and
+ * every channel outside the zone are ignored (midi_event drops them) */
+static int mpe_test(void)
+{
+    int bad = 0, ok; uint32_t i;
+    midi_test_reset();
+    trk[0].eng_req = trk[0].engine = 0u;               /* a synth on the MPE part */
+    trk[0].p[P_VOICE] = V_POLY;
+    song.g[G_ROUTE] = ROUTE_MPE;
+    events_block(CTL);
+
+    /* routing: member channels sound the MPE part only; each voice is tagged with its channel; the master
+     * channel (index 0, MIDI CH1) is outside the zone */
+    queued(0x91, 60, 100, 1); queued(0x92, 62, 100, 1); queued(0x90, 40, 100, 1);
+    ok = gate_note(&trk[0], 60) && gate_note(&trk[0], 62) && !gate_note(&trk[0], 40) &&
+         !gate_note(&trk[1], 60) && !gate_note(&trk[2], 60) && midi_notes[1][60] == 1u && midi_notes[2][62] == 1u &&
+         !midi_notes[0][40] && midi_owners[0] == 2u;
+    for (i = 0; i < NVOICE; i++)
+        if (trk[0].v[i].active)
+            ok &= (trk[0].v[i].note == 60 ? trk[0].v[i].mch == 1u : trk[0].v[i].note == 62 ? trk[0].v[i].mch == 2u : 0);
+    bad += check("MPE: notes on member channels sound the MPE part only, each voice tagged with its channel; CH1 / outsides are ignored", ok);
+
+    /* a bend on ONE member channel bends only that channel's voices: the default +2 st range, the other unchanged */
+    queued(0xE1, 127, 127, 1);
+    ok = midi_ch[1].bend == 8191 && midi_ch[2].bend == 0 && mpe_voice_bend_q8(&trk[0].v[0]) == 512 && mpe_voice_bend_q8(&trk[0].v[1]) == 0;
+    bad += check("MPE: a bend on one member channel bends only its own channel's voices (+2 st); the other note stays put", ok);
+
+    /* RPN 0 sets that channel's bend range (12 st): the per-voice math follows, per channel */
+    queued(0xB1, 101, 0, 1); queued(0xB1, 100, 0, 1); queued(0xB1, 6, 12, 1);
+    ok = midi_ch[1].semis == 12 && mpe_voice_bend_q8(&trk[0].v[0]) == 3072 && mpe_voice_bend_q8(&trk[0].v[1]) == 0;
+    bad += check("MPE: RPN 0 sets the channel's bend range (12 st), per channel, not shared", ok);
+
+    /* aftertouch and CC74 timbre stay per channel; the part's matrix AT is not set in MPE mode */
+    queued(0xD1, 77, 0, 1); queued(0xB1, 74, 90, 1);
+    ok = midi_ch[1].at == 77 && midi_ch[1].cc74 == 90 && trk[0].at == 0 && midi_ch[2].at == 0 && midi_ch[2].cc74 == 64;
+    bad += check("MPE: channel aftertouch and CC74 timbre are per channel; the part's matrix AT is untouched", ok);
+
+    /* Reset All Controllers recentres bend and timbre on the channel, keeps its RPN range */
+    queued(0xB1, 121, 0, 1);
+    ok = midi_ch[1].bend == 0 && midi_ch[1].at == 0 && midi_ch[1].cc74 == 64 && midi_ch[1].semis == 12;
+    bad += check("MPE: Reset All Controllers centres bend and timbre on the channel, keeps RPN", ok);
+
+    /* arp on: an MPE note still sounds its tagged voice directly, bypassing chord / arp / record */
+    trk[0].p[P_AMODE] = 1;
+    queued(0x93, 66, 100, 1);
+    ok = gate_note(&trk[0], 66) && !trk[0].arp_note && !trk[0].nheld && midi_notes[3][66] == 1u && midi_owners[0] == 3u &&
+         (trk[0].v[2].note == 66 && trk[0].v[2].mch == 3u);
+    trk[0].p[P_AMODE] = 0;
+    bad += check("MPE: a note passes 1:1 to a tagged voice even with the ARP on (no chord/arp/record)", ok);
+
+    /* a note-off releases only that channel's voice; the other channels' notes keep sounding */
+    queued(0x81, 60, 0, 1);
+    ok = !gate_note(&trk[0], 60) && gate_note(&trk[0], 62) && gate_note(&trk[0], 66) && midi_notes[1][60] == 0 && midi_owners[0] == 2u;
+    bad += check("MPE: a note-off releases only that channel's voice; the other channels keep sounding", ok);
+    return bad;
+}
 int main(void)
 {
     int bad = controls_test() + sustain_test() + ownership_test() + clock_test(1) + clock_test(2) + clock_arp_and_boundaries() +
-              arp_ext_stop_test() + usb_burst_test() + route_test() + route_block_test() + route_track_test() + follow_test() + cc_map_test() + learn_test() + pc_test();
+              arp_ext_stop_test() + usb_burst_test() + route_test() + route_block_test() + route_track_test() + follow_test() + cc_map_test() + learn_test() + mpe_test() + pc_test();
     printf("%s\n", bad ? "MIDI CONTROL/CLOCK TEST FAILED" : "MIDI control/clock integration tests passed"); return bad != 0;
 }
