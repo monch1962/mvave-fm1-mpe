@@ -79,6 +79,12 @@ PLUCK / BELL / BASS / OTHER, feedback, output levels. The scoring is conservativ
 guidance (weights calibrated by listening — see the project plan), and its unit
 tests run with the host suite (`tools/test_dx7_mpe_bank.py` in `tests/run_tests.sh`).
 
+The end-to-end flow: get the curated DX7 library (`sysexFinal.zip`, MiniDexed
+discussion #456), `scan` it (a few seconds — ~36k unique voices), `make OUT.syx
+<tree> --top 32 --fill` for a **category-balanced** bank (a plain greedy top
+collapses to EP ties on the EP-heavy corpus), then **drop the bank on the browser
+emulator** above — or flash it to the FM-1 later via the web editor's FM6 tab.
+
 ## Voice budget
 
 `NVOICE` (8 by default) is a build-time override: `NVOICE=12 ./build.sh` (or 16) raises the shared voice pool.
