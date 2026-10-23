@@ -467,11 +467,8 @@ document.getElementById("midiknobs").hidden = !navigator.requestMIDIAccess;
  * 4104-byte sysex-framed dump most sites host (F0 43 00 09 20 00 + voices + checksum + F7) */
 const bankbtn = document.getElementById("bankbtn"), banksy = document.getElementById("banksy"),
       bankrc = document.getElementById("bankrc");
-bankbtn.addEventListener("click", () => banksy.click());
-banksy.addEventListener("change", async () => {
-  const f = banksy.files[0];
+async function loadBankFile(f) {
   if (!f) return;
-  banksy.value = "";
   const buf = new Uint8Array(await f.arrayBuffer());
   let bank = buf;
   if (buf.length === FM6_BANK + 8 && buf[0] === 0xF0 && buf[buf.length - 1] === 0xF7)
@@ -484,6 +481,17 @@ banksy.addEventListener("change", async () => {
   bankrc.textContent = "loading…";
   bankrc.hidden = false;
   send({ type: "fm6bank", bank, name: f.name });
+}
+bankbtn.addEventListener("click", () => banksy.click());
+banksy.addEventListener("change", async () => {
+  const f = banksy.files[0];
+  banksy.value = "";
+  await loadBankFile(f);
+});
+addEventListener("dragover", (e) => e.preventDefault());
+addEventListener("drop", (e) => {
+  e.preventDefault();
+  loadBankFile(e.dataTransfer && e.dataTransfer.files[0]);
 });
 async function midiOn() {
   if (!navigator.requestMIDIAccess) return;
