@@ -222,6 +222,25 @@ class ScanMakeTest(unittest.TestCase):
         self.assertNotIn("BELL", greedy)
         self.assertNotIn("PLUCK", greedy)
 
+    def test_make_report_writes_a_shortlist_next_to_the_bank(self):
+        self.write_bank("pad.syx", mkvoice(name="MY PAD   ", alg=31, l1=80, l2=80, att=20, ol=70))
+        self.write_bank("bl.syx", mkvoice(name="MY BELL  ", alg=31, l1=99, l2=90, att=99, d2=35, fixed_ops=4, ol=70))
+        out = os.path.join(self.dir, "bank.syx")
+        m.make(out, self.dir, top=4, fill=True, report=True)
+        text = open(out + ".txt").read()
+        self.assertIn("Bank slots", text)
+        self.assertIn("MY PAD", text)
+        self.assertIn("MY BELL", text)
+        self.assertIn("Corpus leaders", text)
+
+    def test_make_fill_never_picks_other_when_mpe_classes_have_voices(self):
+        self.write_bank("pad.syx", mkvoice(name="MY PAD   ", alg=31, l1=80, l2=80, att=20, ol=70))
+        self.write_bank("other.syx", mkvoice(name="FM SETUP ", alg=0, ol=10, l1=0, l2=0, dec=99))
+        out = os.path.join(self.dir, "no-other.syx")
+        m.make(out, self.dir, top=12, fill=True)
+        cats = {m.category(v) for v in m.parse_bank(open(out, "rb").read()).voices}
+        self.assertEqual(cats, {"PAD"})          # OTHER is available but never picked
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

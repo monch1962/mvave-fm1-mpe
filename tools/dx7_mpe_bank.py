@@ -166,15 +166,20 @@ CATEGORY_BONUS = {"PAD": 25, "EP": 25, "PLUCK": 20, "BELL": 20, "BASS": 10}
 
 
 def score(v):
-    """MPE-fit 0..100. Guidance: monotonic in the signals, exact weights tunable."""
+    """MPE-fit 0..100. Monotonic in the signals; the shapes are tuned so a corpus
+    scan discriminates instead of collapsing to a few tied tiers:
+    - vibrato is quadratic (a little is harmless, a lot very costly),
+    - the level headroom is graduated, not a +/- switch."""
     c = category(v)
     car = carrier_mask(v.alg)
     ops = [v.ops[k] for k in range(6) if car >> k & 1]
     ol = sum(o["ol"] for o in ops) / (len(ops) or 1)
     s = 50 + CATEGORY_BONUS.get(c, 0)
-    s -= min(25, v.lpmd // 2)                   # vibrato fights per-note bend
+    s -= min(40, (v.lpmd * v.lpmd) // 250)      # vibrato: 0->0, 50->10, 75->22, 99->39
     s -= 8 * sum(o["fixed"] for o in v.ops)     # ratio ops bend in tune
-    s += 5 if 30 <= ol <= 85 else -5            # headroom for timbre/pressure
+    s += 8 if ol <= 70 and ol > 15 else -6 if ol >= 85 else 0   # headroom: sweet 16..70, hot >=85, ignored 71..84
+    if ol < 15:
+        s -= 8                                  # too quiet to take timbre well
     return max(0, min(100, s))
 
 
@@ -249,10 +254,11 @@ def scan(root, top=None):
 
 def _fill_categories(ranked, top):
     """`make --fill`: round-robin the ranked voices one per category at a time, so a
-    bank spreads across PAD/EP/PLUCK/BELL/BASS instead of a greedy score grab-bag
-    (the corpus is EP-heavy; greedy makes a bank of near-identical ties)."""
+    bank spreads across the MPE-relevant classes instead of a greedy tie grab-bag
+    (OTHER — FM setup patches, quiet oddities — is never picked while any of
+    PAD/EP/PLUCK/BELL/BASS has a voice)."""
     by = {}
-    order = ("PAD", "EP", "PLUCK", "BELL", "BASS", "OTHER")
+    order = ("PAD", "EP", "PLUCK", "BELL", "BASS")
     for v in ranked:
         by.setdefault(category(v), []).append(v)
     idx = {c: 0 for c in order}
@@ -273,9 +279,31 @@ def _fill_categories(ranked, top):
     return out
 
 
-def make(out, sources, top=32, fill=False, extra=()):
+def _write_report(path, ranked, picked, sources, top, fill, n_unique):
+    """A human-readable shortlist next to the bank: its slots and the corpus-wide
+    per-category leaders, so the selection travels with the bank."""
+    with open(path, "w") as fp:
+        fp.write("MPE-fit DX7 bank shortlist\n")
+        fp.write(f"source: {sources} ({n_unique} unique voices)\n")
+        fp.write(f"command: python3 tools/dx7_mpe_bank.py make {path[:-4]} {sources} --top {top}"
+                 + (" --fill" if fill else "") + "\n\n")
+        fp.write(f"Bank slots B1..B{len(picked)} (the file pads to 32):\n")
+        for k, v in enumerate(picked, 1):
+            fp.write(f"  B{k:>2}  {v.name[:12]:12} {category(v):6} {score(v):>3}  {v.source}\n")
+        fp.write("\nCorpus leaders per category (top 8 each):\n")
+        for cat in ("PAD", "EP", "PLUCK", "BELL", "BASS", "OTHER"):
+            sel = [v for v in ranked if category(v) == cat][:8]
+            if not sel:
+                continue
+            fp.write(f"  -- {cat} --\n")
+            for v in sel:
+                fp.write(f"    {score(v):>3}  {v.name[:14]:14} {v.source}\n")
+
+
+def make(out, sources, top=32, fill=False, extra=(), report=None):
     """Assemble a new 4096-byte bank: the top-scoring distinct voices, or with fill a
-    category-balanced set (every category's best, alternated)."""
+    category-balanced set (every category's best, alternated). `report` also writes a
+    shortlist next to the bank (default: OUT.txt; pass a path to place it elsewhere)."""
     ranked = _load_sources(sources, extra)
     if not ranked:
         raise ValueError("no usable voices in the sources")
@@ -284,6 +312,9 @@ def make(out, sources, top=32, fill=False, extra=()):
     records = (picked * ((32 + len(picked) - 1) // len(picked)))[:32]
     with open(out, "wb") as fp:
         fp.write(b"".join(v.record for v in records))
+    if report is not None:
+        _write_report(out + ".txt" if report is True else report, ranked, picked,
+                      sources, top, fill, len(ranked))
 
 
 def _rows(voices):
@@ -308,10 +339,14 @@ def main(argv=None):
     p_mk.add_argument("source")
     p_mk.add_argument("--top", type=int, default=32)
     p_mk.add_argument("--fill", action="store_true", help="alternate one per category (PAD/EP/PLUCK/BELL/BASS), not a greedy top")
+    p_mk.add_argument("--report", nargs="?", const=True, metavar="TXT",
+                      help="also write a shortlist next to the bank (default OUT.txt, or give a path)")
     args = ap.parse_args(argv)
     if args.cmd == "make":
-        make(args.out, args.source, top=args.top, fill=getattr(args, "fill", False))
-        print(f"wrote {args.out}")
+        make(args.out, args.source, top=args.top, fill=getattr(args, "fill", False),
+             report=getattr(args, "report", None))
+        print(f"wrote {args.out}"
+              + (" and its shortlist" if getattr(args, "report", None) is not None else ""))
         return 0
     voices = scan(args.dir, top=args.top or None) if args.cmd == "scan" \
         else scan(args.bank, top=args.top)
