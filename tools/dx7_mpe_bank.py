@@ -200,6 +200,15 @@ def _syx_files(root):
                 yield os.path.join(dirpath, f)
 
 
+def health(v):
+    """Within a score tie: the MPE-friendliest first — least LFO pitch-mod (vibrato),
+    fewest fixed-freq operators (ratio chords bend in tune), most level headroom."""
+    car = carrier_mask(v.alg)
+    ops = [v.ops[k] for k in range(6) if car >> k & 1]
+    ol = sum(o["ol"] for o in ops) / (len(ops) or 1)
+    return (v.lpmd, sum(o["fixed"] for o in v.ops), -ol)
+
+
 def _load_sources(sources, extra=()):
     """All distinct voices from a file/dir and any extra byte bags; a file that is
     not a parseable bank is skipped (the corpus has odd stragglers), not fatal."""
@@ -220,7 +229,7 @@ def _load_sources(sources, extra=()):
             seen.setdefault(v.digest(), v)
     if skipped and os.environ.get("DX7BANK_VERBOSE"):
         print(f"scan: skipped {skipped} unparseable files", file=sys.stderr)
-    return sorted(seen.values(), key=lambda v: (-score(v), v.name, v.digest()))
+    return sorted(seen.values(), key=lambda v: (-score(v), health(v), v.name, v.digest()))
 
 
 class Entry:

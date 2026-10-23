@@ -128,6 +128,21 @@ class ScoreTest(unittest.TestCase):
         b = m.parse_bank(mkbank([mkvoice(alg=31, fixed=True)])).voices[0]
         self.assertGreater(m.score(a), m.score(b))
 
+    def test_score_ties_break_by_mpe_health_not_name(self):
+        # two voices tie at 80; the vibrato one (lpmd>0) holds the same score but
+        # must come second: "BED" (clean) outranks "AAA" (vibrato) despite the name
+        d = tempfile.mkdtemp(prefix="dx7tie")
+        try:
+            with open(os.path.join(d, "bed.syx"), "wb") as f:
+                f.write(mkbank([mkvoice(name="BED      ", alg=31, lpmd=0)]))
+            with open(os.path.join(d, "aaa.syx"), "wb") as f:
+                f.write(mkbank([mkvoice(name="AAA      ", alg=31, lpmd=1)]))
+            entries = m.scan(d)
+            self.assertEqual(len(entries), 2)
+            self.assertEqual(entries[0].voice.lpmd, 0)   # the clean one, despite "bed" > "aaa"
+        finally:
+            shutil.rmtree(d)
+
     def test_mpe_like_category_outranks_other(self):
         pad = m.parse_bank(mkbank([mkvoice(alg=31, l1=80, l2=80, att=20)])).voices[0]
         other = m.parse_bank(mkbank([mkvoice(alg=0, ol=10, l1=0, l2=0, dec=99)])).voices[0]
