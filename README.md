@@ -52,6 +52,25 @@ Click **Switch on**, allow MIDI access, choose the controller, and set `MIDI IN 
 (hold **HOME** to open the menu; **ALGORITHM** steps the tabs). Notes: the emulator runs **one core** (the FM-1's
 second core is not emulated); USB audio out, the editor protocol, firmware updates and TRS MIDI are not emulated.
 
+## The DX7-bank MPE shortlister
+
+A host tool that reads a standard 4096-byte DX7 bank (the format the web editor
+sends and the FM6 `SLOT B1..B32` bank loads), scores every voice's fit under MPE
+(per-note pitch bend, pressure, CC74 timbre), and can assemble a new bank from
+the top picks — so a large DX7 archive collapses to a shortlist to audition:
+
+```sh
+python3 tools/dx7_mpe_bank.py BANK.syx [--top 24] [--json]   # score one bank
+python3 tools/dx7_mpe_bank.py scan DIR [--top N] [--json]   # a whole tree, deduped
+python3 tools/dx7_mpe_bank.py make OUT.syx DIR [--top 32]    # a new bank from the top
+```
+
+Signals: LFO pitch-mod depth (built-in vibrato fights per-note bend), fixed-vs-ratio
+operators (ratio chords bend in tune), carrier envelope shape → PAD / E.PIANO /
+PLUCK / BELL / BASS / OTHER, feedback, output levels. The scoring is conservative
+guidance (weights calibrated by listening — see the project plan), and its unit
+tests run with the host suite (`tools/test_dx7_mpe_bank.py` in `tests/run_tests.sh`).
+
 ## Voice budget
 
 `NVOICE` (8 by default) is a build-time override: `NVOICE=12 ./build.sh` (or 16) raises the shared voice pool.
