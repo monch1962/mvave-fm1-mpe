@@ -70,7 +70,7 @@ shortlist to audition:
 ```sh
 python3 tools/dx7_mpe_bank.py BANK.syx [--top 24] [--json]   # score one bank
 python3 tools/dx7_mpe_bank.py scan DIR [--top N] [--json]   # a whole tree, deduped
-python3 tools/dx7_mpe_bank.py make OUT.syx DIR [--top 32]    # a new bank from the top
+python3 tools/dx7_mpe_bank.py make OUT.syx DIR [--top 32] [--fill]   # a new bank from the top (--fill: one per category)
 ```
 
 Signals: LFO pitch-mod depth (built-in vibrato fights per-note bend), fixed-vs-ratio

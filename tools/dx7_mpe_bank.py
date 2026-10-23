@@ -201,16 +201,25 @@ def _syx_files(root):
 
 
 def _load_sources(sources, extra=()):
-    """All distinct voices from a file/dir and any extra byte bags."""
+    """All distinct voices from a file/dir and any extra byte bags; a file that is
+    not a parseable bank is skipped (the corpus has odd stragglers), not fatal."""
     seen = {}
+    skipped = 0
     for bag in extra:
         for v in parse_bank(bag, "<extra>").voices:
             seen.setdefault(v.digest(), v)
     for path in _syx_files(sources):
         with open(path, "rb") as fp:
             bank = fp.read()
-        for v in parse_bank(bank, path).voices:
+        try:
+            parsed = parse_bank(bank, path)
+        except ValueError:
+            skipped += 1
+            continue
+        for v in parsed.voices:
             seen.setdefault(v.digest(), v)
+    if skipped and os.environ.get("DX7BANK_VERBOSE"):
+        print(f"scan: skipped {skipped} unparseable files", file=sys.stderr)
     return sorted(seen.values(), key=lambda v: (-score(v), v.name, v.digest()))
 
 
@@ -229,12 +238,40 @@ def scan(root, top=None):
     return [Entry(v, v.source) for v in ranked]
 
 
-def make(out, sources, top=32, extra=()):
-    """Assemble a new 4096-byte bank from the top-scoring distinct voices."""
+def _fill_categories(ranked, top):
+    """`make --fill`: round-robin the ranked voices one per category at a time, so a
+    bank spreads across PAD/EP/PLUCK/BELL/BASS instead of a greedy score grab-bag
+    (the corpus is EP-heavy; greedy makes a bank of near-identical ties)."""
+    by = {}
+    order = ("PAD", "EP", "PLUCK", "BELL", "BASS", "OTHER")
+    for v in ranked:
+        by.setdefault(category(v), []).append(v)
+    idx = {c: 0 for c in order}
+    out = []
+    while len(out) < top:
+        added = False
+        for c in order:
+            pool = by.get(c)
+            if pool and idx[c] < len(pool):
+                v = pool[idx[c]]
+                idx[c] += 1
+                out.append(v)
+                added = True
+                if len(out) >= top:
+                    break
+        if not added:
+            break
+    return out
+
+
+def make(out, sources, top=32, fill=False, extra=()):
+    """Assemble a new 4096-byte bank: the top-scoring distinct voices, or with fill a
+    category-balanced set (every category's best, alternated)."""
     ranked = _load_sources(sources, extra)
     if not ranked:
         raise ValueError("no usable voices in the sources")
-    picked = ranked[:max(1, min(top, len(ranked)))]
+    picked = _fill_categories(ranked, top) if fill else ranked[:max(1, min(top, len(ranked)))]
+    picked = picked or ranked[:1]
     records = (picked * ((32 + len(picked) - 1) // len(picked)))[:32]
     with open(out, "wb") as fp:
         fp.write(b"".join(v.record for v in records))
@@ -261,9 +298,10 @@ def main(argv=None):
     p_mk.add_argument("out")
     p_mk.add_argument("source")
     p_mk.add_argument("--top", type=int, default=32)
+    p_mk.add_argument("--fill", action="store_true", help="alternate one per category (PAD/EP/PLUCK/BELL/BASS), not a greedy top")
     args = ap.parse_args(argv)
     if args.cmd == "make":
-        make(args.out, args.source, top=args.top)
+        make(args.out, args.source, top=args.top, fill=getattr(args, "fill", False))
         print(f"wrote {args.out}")
         return 0
     voices = scan(args.dir, top=args.top or None) if args.cmd == "scan" \

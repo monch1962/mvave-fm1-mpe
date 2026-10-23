@@ -155,6 +155,14 @@ class ScanMakeTest(unittest.TestCase):
         names = sorted(v.voice.name for v in voices)
         self.assertEqual(names, ["SHARED", "UNIQUE"])
 
+    def test_scan_skips_unparseable_files_rather_than_aborting(self):
+        self.write_bank("a.syx", mkvoice(name="GOOD    ", index=0))
+        with open(os.path.join(self.dir, "odd.syx"), "wb") as f:
+            f.write(b"\x00" * 100)          # a corrupt straggler
+        voices = m.scan(self.dir)
+        self.assertEqual(len(voices), 1)
+        self.assertEqual(voices[0].voice.name, "GOOD")
+
     def test_make_assembles_top_n_into_a_4096_byte_bank(self):
         for i in range(12):
             self.write_bank(f"p{i}.syx", mkvoice(name=f"PAD{i:02d}   ", alg=31, l1=80, l2=80, att=20, ol=70, lpmd=0, index=i))
@@ -181,6 +189,23 @@ class ScanMakeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.make(os.path.join(self.dir, "o.syx"), self.dir, top=8,
                    extra=(b"\x00" * 100,))
+
+    def test_make_fill_spreads_the_bank_across_categories(self):
+        for i in range(8):
+            self.write_bank(f"pad{i}.syx", mkvoice(name=f"PAD{i:02d}", alg=31, l1=80, l2=80, att=20, ol=70, index=i))
+            self.write_bank(f"ep{i}.syx", mkvoice(name=f"EP{i:02d}", alg=31, l1=80, l2=60, att=70, ol=70, index=i))
+            self.write_bank(f"bel{i}.syx", mkvoice(name=f"BELL{i:02d}", alg=31, l1=99, l2=90, att=99, d2=35, fixed_ops=4, ol=70, index=i))
+            self.write_bank(f"plu{i}.syx", mkvoice(name=f"PLUCK{i:02d}", alg=31, l1=10, l2=0, att=50, d2=50, ol=70, index=i))
+        out = os.path.join(self.dir, "fill.syx")
+        m.make(out, self.dir, top=16, fill=True)
+        cats = {m.category(v) for v in m.parse_bank(open(out, "rb").read()).voices}
+        self.assertEqual(cats, {"PAD", "EP", "BELL", "PLUCK"})
+        # a greedy top-16 of the same pool never reaches BELL/PLUCK (they score below
+        # the PAD/EP ties), so only score-driven selection drops them
+        m.make(out, self.dir, top=16, fill=False)
+        greedy = {m.category(v) for v in m.parse_bank(open(out, "rb").read()).voices}
+        self.assertNotIn("BELL", greedy)
+        self.assertNotIn("PLUCK", greedy)
 
 
 if __name__ == "__main__":
