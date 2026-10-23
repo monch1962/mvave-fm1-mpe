@@ -54,10 +54,11 @@ second core is not emulated); USB audio out, the editor protocol, firmware updat
 
 ## The DX7-bank MPE shortlister
 
-A host tool that reads a standard 4096-byte DX7 bank (the format the web editor
-sends and the FM6 `SLOT B1..B32` bank loads), scores every voice's fit under MPE
-(per-note pitch bend, pressure, CC74 timbre), and can assemble a new bank from
-the top picks — so a large DX7 archive collapses to a shortlist to audition:
+A host tool that reads a standard DX7 bank — the 4096-byte bank the web editor
+sends (or the 4104-byte sysex-framed dump most sites host) — scores every
+voice's fit under MPE (per-note pitch bend, pressure, CC74 timbre), and can
+assemble a new bank from the top picks — so a large DX7 archive collapses to a
+shortlist to audition:
 
 ```sh
 python3 tools/dx7_mpe_bank.py BANK.syx [--top 24] [--json]   # score one bank

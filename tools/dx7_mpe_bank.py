@@ -116,8 +116,12 @@ class Bank:
     """A parsed 4096-byte bank."""
 
     def __init__(self, data, source=""):
-        if len(data) not in (BANK, RECORD):
-            raise ValueError(f"a bank is {BANK} bytes (or {RECORD}): got {len(data)}")
+        if len(data) in (BANK, RECORD):
+            pass
+        elif len(data) == BANK + 8 and data[0] == 0xF0 and data[-1] == 0xF7:
+            data = data[6:-2]          # sysex-framed dump: F0 43 00 09 20 00 + voices + checksum + F7
+        else:
+            raise ValueError(f"a bank is {BANK} bytes (or {RECORD}, or the {BANK + 8}-byte framed dump): got {len(data)}")
         n = len(data) // RECORD
         self.voices = [Voice(data[i * RECORD:(i + 1) * RECORD], i, source)
                        for i in range(n)]
@@ -131,7 +135,11 @@ def parse_bank(data, source=""):
 
 
 def category(v):
-    """A voice's primary use, from its carriers' envelope and level (heuristic)."""
+    """A voice's primary use, from its carriers' envelopes, levels and fixed ratio.
+
+    In DX7 voices the decay-to-silence is D2L, not D1L (idiophones hold D1L=99 and
+    decay via D2R -> D2L=0), so "sustains" reads the carriers' mean D2L.
+    """
     car = carrier_mask(v.alg)
     ops = [v.ops[k] for k in range(6) if car >> k & 1]
     if not ops:
@@ -139,13 +147,16 @@ def category(v):
     ol = sum(o["ol"] for o in ops) / len(ops)
     if ol < 30:                                # quiet/dark: don't guess
         return "OTHER"
-    sust = sum(o["l1"] for o in ops) / len(ops)
+    sust = sum(o["l2"] for o in ops) / len(ops)   # holds at/after decay-2
     att = sum(o["att"] for o in ops) / len(ops)
-    dec = sum(o["dec1"] for o in ops) / len(ops)
+    d2 = sum(o["dec2"] for o in ops) / len(ops)
     rel = sum(o["rel"] for o in ops) / len(ops)
-    if sust >= 40:
-        return "EP" if att >= 45 else "PAD"
-    if dec >= 70 and (att >= 60 or rel >= 80):
+    if sust >= 40:                             # holds: pad / epiano / metallic bell
+        if att >= 45:
+            met = sum(o["fixed"] for o in ops)
+            return "BELL" if met >= 2 else "EP"   # held metallic hits ring (triangle, glass)
+        return "PAD"
+    if att >= 60 and d2 >= 45:                 # sharp decaying hit ringing out
         return "BELL"
     return "PLUCK"
 

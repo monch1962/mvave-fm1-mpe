@@ -18,7 +18,7 @@ import dx7_mpe_bank as m  # noqa: E402
 
 
 def mkvoice(name="VOICE", alg=0, fb=0, lfs=0, lpmd=0, lamd=0, ol=70, fixed=False,
-            l1=70, l2=70, att=30, dec=40, rel=50, coarse=1, index=0):
+            fixed_ops=0, l1=70, l2=70, att=30, dec=40, d2=None, rel=50, coarse=1, index=0):
     """A 128-byte packed voice record with the planted fields (rest zeros)."""
     b = bytearray(m.RECORD)
     padded = (name + " " * 10)[:10].encode("ascii")
@@ -28,15 +28,18 @@ def mkvoice(name="VOICE", alg=0, fb=0, lfs=0, lpmd=0, lamd=0, ol=70, fixed=False
     b[m.LFS] = lfs
     b[m.LPMD] = lpmd
     b[m.LAMD] = lamd
+    if d2 is None:
+        d2 = dec
     for k in range(6):
         op = k * m.OP
         b[op + 0] = att                 # R1 (attack rate)
         b[op + 1] = dec                 # D1R
-        b[op + 4] = l1                  # D1L (sustain level)
-        b[op + 5] = l2                  # D2L
+        b[op + 2] = d2                  # D2R
+        b[op + 4] = l1                  # D1L
+        b[op + 5] = l2                  # D2L (the decay-to-silence level)
         b[op + 3] = rel                 # RR
         b[op + 14] = ol                 # output level
-        b[op + 15] = ((1 if fixed and k == 0 else 0)) | (coarse << 1)   # MODE | FC on op 0 only
+        b[op + 15] = ((1 if (fixed and k == 0) or k < fixed_ops else 0)) | (coarse << 1)
         b[op + 16] = 0                  # fine
     return bytes(b)
 
@@ -56,6 +59,14 @@ class ParserTest(unittest.TestCase):
             m.parse_bank(b"\x00" * 100)
         with self.assertRaises(ValueError):
             m.parse_bank(b"\x00" * (m.BANK + 1))
+
+    def test_bank_accepts_4104_byte_sysex_framed_dumps(self):
+        # most online DX7 banks are F0 43 00 09 20 00 + 4096 voices + checksum + F7
+        raw = mkbank([mkvoice(name="FRAMED  ", index=i) for i in range(32)])
+        framed = b"\xf0\x43\x00\x09\x20\x00" + raw + b"\x0e\xf7"
+        bank = m.parse_bank(framed)
+        self.assertEqual(len(bank), 32)
+        self.assertEqual(bank.voices[0].name, "FRAMED")
 
     def test_voice_fields_parse_at_documented_offsets(self):
         v = m.parse_bank(mkbank([mkvoice(name="MYVOICE  ", alg=5, fb=3, lfs=4, lpmd=40,
@@ -92,12 +103,18 @@ class CategoryTest(unittest.TestCase):
         self.assertEqual(m.category(v), "EP")
 
     def test_percussive_fast_decay_is_bell(self):
-        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=10, l2=0, att=70, dec=90, rel=90)])).voices[0]
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=10, l2=0, att=70, dec=90, d2=60, rel=90)])).voices[0]
         self.assertEqual(m.category(v), "BELL")
 
     def test_percussive_medium_decay_is_pluck(self):
-        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=10, l2=0, att=50, dec=50, rel=60)])).voices[0]
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=10, l2=0, att=50, dec=50, d2=50, rel=60)])).voices[0]
         self.assertEqual(m.category(v), "PLUCK")
+
+    def test_held_metallic_hit_is_bell(self):
+        # an idiophone holds D1L=99 and decay-2 levels high, and uses fixed frequencies
+        # (triangle, glass) - that must read as BELL, not EP
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=99, l2=90, att=99, dec=99, d2=35, fixed_ops=4)])).voices[0]
+        self.assertEqual(m.category(v), "BELL")
 
 
 class ScoreTest(unittest.TestCase):
