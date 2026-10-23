@@ -407,6 +407,34 @@ EXPORT uint32_t web_midi(uint32_t status, uint32_t d1, uint32_t d2)
     return (uint32_t)midi_enqueue((status >> 4) | status << 8 | (d1 & 127u) << 16 | (d2 & 127u) << 24, 1);
 }
 
+/* FM6 voice bank in the browser (the tool's 4096-byte bank, or the web editor's 32-voice .syx):
+ * the page writes the 32 x 128-byte records into the source buffer and a name, then
+ * web_fm6_bank_load runs the firmware's own staged-bank flow (fm6_vbank.c
+ * fvb_begin/write/end): committed to flash 0xE7000, fvb_boot installs it and
+ * fm6_bank_changed adopts tracks on bank slots, so FM6 SLOT B1..B32 read it at
+ * once. The page's sector store keeps 0xE7000, so the bank survives reloads.
+ * rc 0 loaded, 2 crc, 4 flash, 5 transfer */
+static uint8_t web_fm6_src[FM6_NBANK * FM6_PACKED];
+static uint8_t web_fm6_name[12];
+static uint8_t web_fm6_out[FM6_PACKED];
+EXPORT uint8_t *web_fm6_bank_src(void) { return web_fm6_src; }
+EXPORT uint8_t *web_fm6_bank_name(void) { return web_fm6_name; }
+EXPORT uint32_t web_fm6_bank_load(void)
+{
+    uint32_t k, c = 0xFFFFFFFFu;
+    if (fvb_begin())
+        return 4;
+    for (k = 0; k < FM6_NBANK; k++)
+        if (fvb_write(k, web_fm6_src + k * FM6_PACKED))
+            return 4;
+    for (k = 0; k < FM6_NBANK; k++)            /* the editor's CRC: the records, in index order */
+        c = st_crc32_add(c, web_fm6_src + k * FM6_PACKED, FM6_PACKED);
+    return fvb_end(web_fm6_name, ~c);
+}
+/* test hook: the voice the bank at 0xE7000 holds for B k+1 (0 there, 1 none) */
+EXPORT uint32_t web_fm6_voice(uint32_t k) { return fm6_bank_read(k, web_fm6_out); }
+EXPORT uint8_t *web_fm6_voice_buf(void) { return web_fm6_out; }
+
 /* the LEDs: bit b = the button labelled b lit (bit 14: PLAY's green), keys bit k; the dim glow and the breath alike */
 static uint32_t led_on(const uint8_t *l, uint32_t id)
 {

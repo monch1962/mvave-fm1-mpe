@@ -52,6 +52,12 @@ Click **Switch on**, allow MIDI access, choose the controller, and set `MIDI IN 
 (hold **HOME** to open the menu; **ALGORITHM** steps the tabs). Notes: the emulator runs **one core** (the FM-1's
 second core is not emulated); USB audio out, the editor protocol, firmware updates and TRS MIDI are not emulated.
 
+**Load an FM6/DX7 bank** with the **Load FM6 bank** button below the panel (a 4096-byte
+bank, or the 4104-byte sysex-framed dump most sites host): the firmware's own
+staged-bank flow commits it to flash `0xE7000`, so `FM6 SLOT B1..B32` pick the
+voices at once — the same file the FM-1's web editor later flashes. The loaded
+bank is kept with the emulator's saved flash across reloads.
+
 ## The DX7-bank MPE shortlister
 
 A host tool that reads a standard DX7 bank — the 4096-byte bank the web editor

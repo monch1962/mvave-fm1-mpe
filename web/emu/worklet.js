@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+const FM6_BANK = 4096;                  // a 32-voice FM6/DX7 bank (web_fm6_bank_src/load, felucca_web.c)
 // Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
 // Felucca in an AudioWorklet: felucca.wasm is the whole FM-1 firmware against a simulated FM-1
 // (web/emu/felucca_web.c). Each render quantum asks it for 128 frames, which runs the device's clock forward;
@@ -92,6 +93,16 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "enc") ex.web_enc(m.role, m.n | 0);
       else if (m.type === "master") ex.web_master(m.value | 0);
       else if (m.type === "midi") ex.web_midi(m.data[0] | 0, m.data[1] | 0, m.data[2] | 0);
+      else if (m.type === "fm6bank") {
+        const mem = ex.memory.buffer;
+        const src = new Uint8Array(mem, ex.web_fm6_bank_src(), FM6_BANK);
+        src.set(m.bank);
+        const nm = new Uint8Array(mem, ex.web_fm6_bank_name(), 12);
+        const name = String(m.name || "LOADED").slice(0, 10).toUpperCase();
+        for (let i = 0; i < 12; i++) nm[i] = i < name.length ? name.charCodeAt(i) : 32;
+        const rc = ex.web_fm6_bank_load();
+        this.port.postMessage({ type: "fm6bank", rc });
+      }
       else if (m.type === "visible") this.period = m.on ? 1 / 30 : 1 / 4;
     }
 

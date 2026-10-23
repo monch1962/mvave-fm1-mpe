@@ -194,9 +194,37 @@ if (nativePath) {                                             // web/emu/native_
   check(`the same song from the native build (cc): ${web.length / 2} frames, ${diff === 0 ? "bit for bit" : "differs at " + diff}`, diff === 0);
 }
 
+// ---- FM6 voice bank in the browser: web_fm6_bank_load drives the firmware's own
+// staged-bank flow (fvb_begin/write/end -> 0xE7000), so SLOT B1..B32 read the bank;
+// the page's sector store keeps 0xE7000, so it survives across instances
+{
+  const B = 4096;                                    // a 32-voice FM6/DX7 bank
+  const d = await device(null);
+  const bank = new Uint8Array(B);
+  for (let i = 0; i < B; i++) bank[i] = (i * 31 + 17) & 0x7F;   // deterministic, 7-bit (packs exactly)
+  for (let k = 0; k < 32; k++) {
+    bank[k * 128 + 110] = 31;                        // algorithm
+    bank.set([...Array(10)].map((_, i) => "EMUFM6    "[i].charCodeAt(0)), k * 128 + 118);
+  }
+  new Uint8Array(d.mem.buffer, d.ex.web_fm6_bank_src(), B).set(bank);
+  new Uint8Array(d.mem.buffer, d.ex.web_fm6_bank_name(), 12)
+    .set([...("EMUFM6".padEnd(12, " "))].map((c) => c.charCodeAt(0)));
+  const rc = d.ex.web_fm6_bank_load();
+  check("emu: FM6 bank loaded (web_fm6_bank_load, the firmware's own staging -> 0xE7000)", rc === 0);
+  let ok = d.ex.web_fm6_voice(0) === 0 && d.ex.web_fm6_voice(31) === 0;
+  const v0 = new Uint8Array(d.mem.buffer, d.ex.web_fm6_voice_buf(), 128);
+  for (let i = 0; i < 128; i++) ok &= v0[i] === bank[i];
+  check("emu: FM6 B1 reads back the loaded bank's first voice, byte for byte", ok);
+  const saved = storeSectors(new Uint8Array(d.mem.buffer, d.ex.web_nor(), d.ex.web_nor_size()));
+  const d2 = await device(saved);                    // a fresh instance, the page's kept flash
+  ok = d2.ex.web_fm6_voice(0) === 0;
+  const v1 = new Uint8Array(d2.mem.buffer, d2.ex.web_fm6_voice_buf(), 128);
+  for (let i = 0; i < 128; i++) ok &= v1[i] === bank[i];
+  check("emu: the loaded FM6 bank survives the flash kept across instances", ok);
+}
+
 // ---- the cost: 1 s of the heavy song against real time (the best of 3, after 2 s to settle)
-let best = Infinity;
-s1.rec = false;
+let best = Infinity;s1.rec = false;
 for (let i = 0; i < 3; i++) {
   const t0 = performance.now();
   s1.render(1000);
