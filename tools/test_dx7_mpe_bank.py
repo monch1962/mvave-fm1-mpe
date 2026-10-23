@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+"""Tests for tools/dx7_mpe_bank.py (the DX7-bank MPE-fit shortlister).
+
+The fixture voices are built by planting bytes at the documented pack offsets
+(see dx7_mpe_bank.py and the C source it mirrors: firmware/src/fm6_core.c
+fm6_unpack), so the parser's expectations do not depend on the tool's own
+writer. Runs with: python3 tools/test_dx7_mpe_bank.py
+"""
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dx7_mpe_bank as m  # noqa: E402
+
+
+def mkvoice(name="VOICE", alg=0, fb=0, lfs=0, lpmd=0, lamd=0, ol=70, fixed=False,
+            l1=70, l2=70, att=30, dec=40, rel=50, coarse=1, index=0):
+    """A 128-byte packed voice record with the planted fields (rest zeros)."""
+    b = bytearray(m.RECORD)
+    padded = (name + " " * 10)[:10].encode("ascii")
+    b[m.NAME:m.NAME + 10] = padded
+    b[m.ALG] = alg
+    b[m.FB] = fb
+    b[m.LFS] = lfs
+    b[m.LPMD] = lpmd
+    b[m.LAMD] = lamd
+    for k in range(6):
+        op = k * m.OP
+        b[op + 0] = att                 # R1 (attack rate)
+        b[op + 1] = dec                 # D1R
+        b[op + 4] = l1                  # D1L (sustain level)
+        b[op + 5] = l2                  # D2L
+        b[op + 3] = rel                 # RR
+        b[op + 14] = ol                 # output level
+        b[op + 15] = ((1 if fixed and k == 0 else 0)) | (coarse << 1)   # MODE | FC on op 0 only
+        b[op + 16] = 0                  # fine
+    return bytes(b)
+
+
+def mkbank(voices):
+    if len(voices) == 1:
+        voices = list(voices) * 32
+    assert len(voices) == 32 and all(len(v) == m.RECORD for v in voices)
+    return b"".join(voices)
+
+
+class ParserTest(unittest.TestCase):
+    def test_bank_parse_returns_32_voices(self):
+        self.assertEqual(len(m.parse_bank(mkbank([mkvoice(index=i) for i in range(32)]))), 32)
+    def test_bank_rejects_bad_sizes(self):
+        with self.assertRaises(ValueError):
+            m.parse_bank(b"\x00" * 100)
+        with self.assertRaises(ValueError):
+            m.parse_bank(b"\x00" * (m.BANK + 1))
+
+    def test_voice_fields_parse_at_documented_offsets(self):
+        v = m.parse_bank(mkbank([mkvoice(name="MYVOICE  ", alg=5, fb=3, lfs=4, lpmd=40,
+                                         fixed=True, ol=70)])).voices[0]
+        self.assertEqual(v.name, "MYVOICE")
+        self.assertEqual(v.alg, 5)
+        self.assertEqual(v.fb, 3)
+        self.assertEqual(v.lfs, 4)
+        self.assertEqual(v.lpmd, 40)
+        self.assertEqual(v.ops[0]["fixed"], True)
+        self.assertEqual(v.ops[0]["ol"], 70)
+        self.assertEqual(v.ops[0]["coarse"], 1)
+        self.assertEqual(v.ops[1]["fixed"], False)
+
+
+class CarrierTest(unittest.TestCase):
+    def test_carrier_masks_match_the_C_rule_val3_zero(self):
+        # FM6_ALG rows 0, 1, 30, 31 whose &3 == 0 bits are the carriers
+        self.assertEqual(m.carrier_mask(0), 0x28)   # {0xc1,0x11,0x11,0x14,0x01,0x14}
+        self.assertEqual(m.carrier_mask(1), 0x28)
+        self.assertEqual(m.carrier_mask(30), 0x3E)  # {0xc1,0x14,0x04,0x04,0x04,0x04}
+        self.assertEqual(m.carrier_mask(31), 0x3F)  # all six carriers
+
+
+class CategoryTest(unittest.TestCase):
+    """Heuristics planted with unambiguous values -> the branch they hit."""
+
+    def test_sustained_slow_attack_is_pad(self):
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=80, l2=80, att=20, dec=30)])).voices[0]
+        self.assertEqual(m.category(v), "PAD")
+
+    def test_sustained_fast_attack_is_ep(self):
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=80, l2=60, att=70, dec=30)])).voices[0]
+        self.assertEqual(m.category(v), "EP")
+
+    def test_percussive_fast_decay_is_bell(self):
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=10, l2=0, att=70, dec=90, rel=90)])).voices[0]
+        self.assertEqual(m.category(v), "BELL")
+
+    def test_percussive_medium_decay_is_pluck(self):
+        v = m.parse_bank(mkbank([mkvoice(alg=31, l1=10, l2=0, att=50, dec=50, rel=60)])).voices[0]
+        self.assertEqual(m.category(v), "PLUCK")
+
+
+class ScoreTest(unittest.TestCase):
+    def test_vibrato_depths_rank_lower(self):
+        a = m.parse_bank(mkbank([mkvoice(alg=31, lpmd=0)])).voices[0]
+        b = m.parse_bank(mkbank([mkvoice(alg=31, lpmd=99)])).voices[0]
+        self.assertGreater(m.score(a), m.score(b))
+
+    def test_fixed_operators_rank_lower(self):
+        a = m.parse_bank(mkbank([mkvoice(alg=31)])).voices[0]
+        b = m.parse_bank(mkbank([mkvoice(alg=31, fixed=True)])).voices[0]
+        self.assertGreater(m.score(a), m.score(b))
+
+    def test_mpe_like_category_outranks_other(self):
+        pad = m.parse_bank(mkbank([mkvoice(alg=31, l1=80, l2=80, att=20)])).voices[0]
+        other = m.parse_bank(mkbank([mkvoice(alg=0, ol=10, l1=0, l2=0, dec=99)])).voices[0]
+        self.assertGreater(m.score(pad), m.score(other))
+
+
+class ScanMakeTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="dx7t")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def write_bank(self, name, voice):
+        with open(os.path.join(self.dir, name), "wb") as f:
+            f.write(mkbank([voice]))
+
+    def test_scan_parses_a_tree_and_dedupes_by_record_hash(self):
+        shared = mkvoice(name="SHARED  ", index=0)
+        self.write_bank("a.syx", shared)
+        self.write_bank("b.syx", shared)
+        self.write_bank("c.syx", mkvoice(name="UNIQUE  ", index=1))
+        voices = m.scan(self.dir)
+        self.assertEqual(len(voices), 2)
+        names = sorted(v.voice.name for v in voices)
+        self.assertEqual(names, ["SHARED", "UNIQUE"])
+
+    def test_make_assembles_top_n_into_a_4096_byte_bank(self):
+        for i in range(12):
+            self.write_bank(f"p{i}.syx", mkvoice(name=f"PAD{i:02d}   ", alg=31, l1=80, l2=80, att=20, ol=70, lpmd=0, index=i))
+        for i in range(8):
+            self.write_bank(f"e{i}.syx", mkvoice(name=f"EP{i:02d}    ", alg=31, l1=80, l2=60, att=70, ol=70, lpmd=60, index=i))
+        out = os.path.join(self.dir, "out.syx")
+        m.make(out, self.dir, top=8)
+        with open(out, "rb") as fp_out:
+            data = fp_out.read()
+        self.assertEqual(len(data), m.BANK)
+        voices = m.parse_bank(data).voices
+        names = [v.name for v in voices]
+        # 12 clean PADs (score 80) beat 8 vibrato-heavy EPs (score ~55): the top 8
+        # are all distinct PADs, and every record is byte-identical to its source
+        self.assertEqual(len(set(names)), 8)
+        self.assertTrue(all(n.startswith("PAD") for n in names), names)
+        src = {open(os.path.join(self.dir, "p0.syx"), "rb").read()}
+        for j in range(1, 12):
+            src.add(open(os.path.join(self.dir, f"p{j}.syx"), "rb").read())
+        for v in voices:
+            self.assertTrue(any(bytes(v.record) in bank for bank in src))
+
+    def test_make_rejects_non4096_sources(self):
+        with self.assertRaises(ValueError):
+            m.make(os.path.join(self.dir, "o.syx"), self.dir, top=8,
+                   extra=(b"\x00" * 100,))
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

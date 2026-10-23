@@ -512,4 +512,8 @@ else
         node web/emu/emu_test.mjs build/emu/felucca.wasm "$OUT/emu_native.f32"
 fi
 
+if command -v python3 >/dev/null 2>&1; then
+    run "DX7 MPE bank tool (tools/dx7_mpe_bank.py: parse, score, scan, make)" python3 tools/test_dx7_mpe_bank.py
+fi
+
 [ $fail -eq 0 ] && echo "ALL HOST TESTS PASSED" || { echo "HOST TESTS FAILED"; exit 1; }
